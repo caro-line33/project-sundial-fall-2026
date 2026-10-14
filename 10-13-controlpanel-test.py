@@ -21,7 +21,6 @@ class MainWindow(QMainWindow):
         self.dut_names = [f"DUT {i}" for i in range(12)]
         self.dut_buttons = []
         self.dut_busy = False
-        self.dut_worker = None
         self.selected_dut_index = None
 
         self.central_widget = QWidget()
