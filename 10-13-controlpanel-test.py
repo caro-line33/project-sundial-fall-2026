@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
         self.dut_buttons = []
         self.dut_busy = False
         self.selected_dut_index = None
+        self.next_dut_index = None
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
