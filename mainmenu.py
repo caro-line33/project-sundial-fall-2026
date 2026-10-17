@@ -43,7 +43,8 @@ class InfoBox(QGroupBox):
 
         self.setStyleSheet("""
             QGroupBox {
-                font-size: 15px;
+                font-size: 17px;
+                font-weight: medium;
             }
 
             QGroupBox::title {
@@ -194,6 +195,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Project Sundial Control Panel")
+        self.header_text = QLabel("PROJECT SUNDIAL")
+
         self.setGeometry(100, 100, 1000, 700)
 
         self.central_widget = QWidget()
@@ -218,15 +221,29 @@ class MainWindow(QMainWindow):
         self.frame_layout = QHBoxLayout(self.header_frame)
         self.header_text = QLabel("PROJECT SUNDIAL")
         self.subheader_text = QLabel("Automated Single Event Effects Testing")
-        self.toggle_log = QPushButton("Show System Log")
+
+        self.header_text.setStyleSheet("""
+            font-size: 30px;
+            font-weight: demibold;
+            color: white;
+        """)
+
+        self.subheader_text = QLabel("Automated Single Event Effects Testing")
+
+        self.subheader_text.setStyleSheet("""
+            font-size: 14px;
+            color: #bdc3c7;
+        """)
+        
+        self.toggle_log = QPushButton("Show Log")
         self.test_motors = QPushButton("Test Motors")
         self.toggle_log.clicked.connect(self.show_hide_log)
         self.title_layout = QVBoxLayout()
         self.title_layout.addWidget(self.header_text)
         self.title_layout.addWidget(self.subheader_text)
-        self.frame_layout.addLayout(self.title_layout)
-        self.frame_layout.addWidget(self.test_motors)
-        self.frame_layout.addWidget(self.toggle_log)
+        self.frame_layout.addLayout(self.title_layout, 10)
+        self.frame_layout.addWidget(self.test_motors, 1)
+        self.frame_layout.addWidget(self.toggle_log, 1)
         self.layout.addWidget(self.header_frame, 1)
 
         # HORIZONTAL LAYOUT FOR THE BOXES
@@ -367,7 +384,7 @@ class MainWindow(QMainWindow):
         self.splitter.setSizes([450, 200])
 
         # Hide log initially
-        self.log_output.hide()
+        self.log_output.show()
 
         
 
@@ -375,10 +392,10 @@ class MainWindow(QMainWindow):
         # Toggles the visibility of the log output widget.
         if self.log_output.isVisible():
             self.log_output.hide()
-            self.toggle_log.setText("Show System Log")
+            self.toggle_log.setText("Show Log")
         else:
             self.log_output.show()
-            self.toggle_log.setText("Hide System Log")
+            self.toggle_log.setText("Hide Log")
             self.splitter.setSizes([450, 200])
 
 if __name__ == "__main__":
