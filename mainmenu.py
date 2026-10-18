@@ -236,7 +236,7 @@ class MainWindow(QMainWindow):
 
             QGroupBox {
                 background-color: #353535;
-                border: 1px solid #555555;
+                border: 2px solid #555555;
                 border-radius: 8px;
                 margin-top: 10px;
                 padding: 10px;
@@ -249,7 +249,7 @@ class MainWindow(QMainWindow):
                 padding: 8px;
             }
         """)
-        
+
     def init_ui(self):
         self.layout = QVBoxLayout(self.central_widget)
 
@@ -425,6 +425,12 @@ class MainWindow(QMainWindow):
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
         self.log_output.setPlaceholderText("Log outputs will appear here...")
+        self.log_output.setStyleSheet("""
+            background-color: #353535;
+            color: white;
+            border: 2px solid #444444;
+            border-radius: 5px;
+        """)
 
         self.splitter.addWidget(self.log_output)
 
