@@ -504,7 +504,7 @@ class MainWindow(QMainWindow):
         self.log("Successfully connected!", "success")
         self.rp_connected = True
         self.motor_pin_setup.setEnabled(True)
-        self.testing_setup.setEnabled(self.rp_connected and self.motors())
+        self.testing_setup.setEnabled(self.rp_connected and self.motors)
 
     def rp_connection_error(self, message):
         self.log(f"Connection failed: {message}", "error")
