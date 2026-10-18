@@ -238,7 +238,7 @@ class MainWindow(QMainWindow):
             QGroupBox:disabled {
                 background-color: #252525;
                 border: 2px solid #404040;
-                color: #777777;
+                color: #FFFFF0;
             }
 
             QLabel:disabled {
