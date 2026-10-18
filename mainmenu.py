@@ -248,6 +248,11 @@ class MainWindow(QMainWindow):
                 border-radius: 5px;
                 padding: 8px;
             }
+                
+            QLineEdit {
+                background-color: #FFFFFF;
+                color: #34495E;
+            }
         """)
 
     def init_ui(self):
