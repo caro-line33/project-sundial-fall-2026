@@ -2,20 +2,16 @@ import sys
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QGroupBox,
     QPushButton, QMainWindow, QLabel, QLineEdit,
-    QHBoxLayout, QFrame, QSplitter, QTextEdit
+    QHBoxLayout, QFrame, QSplitter, QTextEdit, QComboBox
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QEvent
 from workers import ConnectWorker
 import json
-import paramiko
-
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
 import math
+from html import escape
 
 from PyQt6.QtWidgets import QWidget, QPushButton, QButtonGroup
-from PyQt6.QtCore import Qt, pyqtSignal, QPointF, QRectF
+from PyQt6.QtCore import pyqtSignal, QPointF, QRectF
 from PyQt6.QtGui import QPainter, QPen, QColor
 
 class EntryLine(QWidget):
@@ -39,6 +35,8 @@ class EntryLine(QWidget):
 
 
 class InfoBox(QGroupBox):
+    """One step of the setup wizard, with an explicit available/locked label."""
+
     def __init__(
         self,
         title="Group Box Example",
@@ -46,43 +44,37 @@ class InfoBox(QGroupBox):
         button_text="Button Text"
     ):
         super().__init__(title)
-
-        self.setStyleSheet("""
-            QGroupBox {
-                font-size: 17px;
-                font-weight: medium;
-            }
-
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top center;
-            }
-        """)
-
+        self.setObjectName("stepBox")
         self.description = description
         self.button_text = button_text
-
         self.init_ui()
 
     def init_ui(self):
         self.main_layout = QVBoxLayout(self)
 
-        description_label = QLabel(self.description)
+        description_row = QHBoxLayout()
+        self.description_label = QLabel(self.description)
+        self.description_label.setObjectName("stepDescription")
+        # self.status_label = QLabel("AVAILABLE")
+        # self.status_label.setObjectName("sectionStatus")
+        description_row.addWidget(self.description_label, 1)
+        # description_row.addWidget(self.status_label)
 
-        # Store button so we can connect signals later
         self.button = QPushButton(self.button_text)
-
-        self.main_layout.addWidget(description_label, 2)
+        self.main_layout.addLayout(description_row, 2)
 
         self.entry_boxes = QVBoxLayout()
         self.main_layout.addLayout(self.entry_boxes, 7)
-
         self.main_layout.addWidget(self.button, 1)
+
+    # def changeEvent(self, event):
+    #    super().changeEvent(event)
+    #    if event.type() == QEvent.Type.EnabledChange and hasattr(self, "status_label"):
+    #        self.status_label.setText("AVAILABLE" if self.isEnabled() else "LOCKED")
 
     def add_item(self, widget):
         self.entry_boxes.addWidget(widget)
 
-    # NEW: Allow adding layouts as well
     def add_layout(self, layout):
         self.entry_boxes.addLayout(layout)
 
@@ -97,6 +89,12 @@ class DUTSelector(QWidget):
         self.setMinimumSize(250, 250)
 
         self.buttons = []
+        self.draw_colors = {
+            "border": "#385775", "board": "#DCE8F4",
+            "hub": "#B7CFE6", "text": "#213E5A",
+            "disabled_border": "#A9B8C8", "disabled_board": "#D6DEE7",
+            "disabled_hub": "#BBC7D4", "disabled_text": "#8A9BAB",
+        }
 
         # Only one position selected at a time
         self.button_group = QButtonGroup(self)
@@ -109,18 +107,7 @@ class DUTSelector(QWidget):
             button.setFixedSize(36, 36)
             button.setCheckable(True)
 
-            button.setStyleSheet("""
-                QPushButton {
-                    background-color: #3498db;
-                    color: white;
-                    border-radius: 18px;
-                    font-weight: bold;
-                }
-
-                QPushButton:checked {
-                    background-color: #27ae60;
-                }
-            """)
+            button.setObjectName("dutPosition")
 
             self.buttons.append(button)
             self.button_group.addButton(button, i + 1)
@@ -131,6 +118,15 @@ class DUTSelector(QWidget):
         )
 
         self.position_buttons()
+
+    def set_draw_colors(self, colors):
+        self.draw_colors = colors
+        self.update()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.EnabledChange:
+            self.update()
 
     def position_buttons(self):
         """Arrange 12 buttons in a circle."""
@@ -170,9 +166,15 @@ class DUTSelector(QWidget):
 
         radius = min(self.width(), self.height()) * 0.46
 
-        # Main DUT circle
-        painter.setPen(QPen(QColor("#34495e"), 3))
-        painter.setBrush(QColor("#d6eaf8"))
+        # Use faded colors when the testing section is locked.
+        disabled = not self.isEnabled()
+        border_color = self.draw_colors["disabled_border" if disabled else "border"]
+        board_color = self.draw_colors["disabled_board" if disabled else "board"]
+        hub_color = self.draw_colors["disabled_hub" if disabled else "hub"]
+        label_color = self.draw_colors["disabled_text" if disabled else "text"]
+
+        painter.setPen(QPen(QColor(border_color), 3))
+        painter.setBrush(QColor(board_color))
 
         painter.drawEllipse(
             QPointF(center_x, center_y),
@@ -181,7 +183,7 @@ class DUTSelector(QWidget):
         )
 
         # Center circle
-        painter.setBrush(QColor("#a9cce3"))
+        painter.setBrush(QColor(hub_color))
         painter.drawEllipse(
             QPointF(center_x, center_y),
             25,
@@ -189,7 +191,7 @@ class DUTSelector(QWidget):
         )
 
         # Center label
-        painter.setPen(QColor("#2c3e50"))
+        painter.setPen(QColor(label_color))
         painter.drawText(
             QRectF(center_x - 30, center_y - 15, 60, 30),
             Qt.AlignmentFlag.AlignCenter,
@@ -201,11 +203,10 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Project Sundial Control Panel")
-        self.header_text = QLabel("PROJECT SUNDIAL")
-
         self.setGeometry(100, 100, 1000, 700)
 
         self.central_widget = QWidget()
+        self.central_widget.setObjectName("centralWidget")
         self.setCentralWidget(self.central_widget)
 
         # RASPBERRY PI CONNECTION
@@ -222,60 +223,182 @@ class MainWindow(QMainWindow):
         
         self.init_ui()
 
-        self.setStyleSheet("""
-            QGroupBox {
-                background-color: #353535;
-                color: white;
-                border: 2px solid #555555;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding: 10px;
-            }
-
-            QGroupBox:disabled {
-                background-color: #252525;
-                color: #777777;
-                border: 2px solid #404040;
-            }
-
-            QLabel {
-                color: white;
-            }
-
-            QLabel:disabled {
-                color: #777777;
-            }
-
-            QPushButton {
-                background-color: #454545;
-                color: white;
-                border-radius: 5px;
-                padding: 8px;
-            }
-
-            QPushButton:disabled {
-                background-color: #303030;
-                color: #777777;
-            }
-
-            QLineEdit {
-                background-color: white;
-                color: #34495E;
-            }
-
-            QLineEdit:disabled {
-                background-color: #303030;
-                color: #888888;
-            }
-
-            QMainWindow {
-                background-color: #E8E8E8;
-            }
-        """)
+        # Apply AFTER creating the widgets so it covers the whole window.
+        self.color_theme = "Dark"
+        self.apply_theme()
 
     @property
     def motors(self):
         return self.nema_23_controller is not None and self.nema_17_controller is not None
+
+    def apply_theme(self):
+        if self.color_theme == "Light":
+            theme = "Dark"
+        else:
+            theme = "Light"
+
+        if theme == "Dark":
+            c = {
+                "window": "#0F1726", "card": "#1C2A3C", "border": "#587AA0",
+                "text": "#F0F5FC", "muted": "#BAC8D8",
+                "locked": "#111B29", "locked_border": "#3C4B5F",
+                "locked_text": "#7F93AA", "accent": "#2563C9",
+                "accent_hover": "#347AE2", "disabled_button": "#29394D",
+                "input": "#27384C", "input_border": "#50647C",
+                "disabled_input": "#1A2635", "header": "#152B47",
+                "header_edge": "#34516F", "header_button": "#284461",
+                "log": "#0B1320", "log_border": "#394D64",
+                "ready": "#7EE2B0", "placeholder": "#8C9FB2",
+                "board": "#304962", "hub": "#405F7B",
+                "board_border": "#8CB1D6", "board_text": "#E4F1FF",
+                "board_disabled": "#1B2838", "hub_disabled": "#28394B",
+                "board_disabled_border": "#44576B", "board_disabled_text": "#70859C",
+            }
+        else:
+            c = {
+                "window": "#EDF2F7", "card": "#FFFFFF", "border": "#6089BD",
+                "text": "#1D3049", "muted": "#51657C",
+                "locked": "#DDE5EE", "locked_border": "#A5B3C4",
+                "locked_text": "#687C91", "accent": "#2362BE",
+                "accent_hover": "#174E9F", "disabled_button": "#B8C5D3",
+                "input": "#F8FAFD", "input_border": "#BCCBDC",
+                "disabled_input": "#CAD5E0", "header": "#17324F",
+                "header_edge": "#355876", "header_button": "#2F5274",
+                "log": "#142237", "log_border": "#405773",
+                "ready": "#087C5E", "placeholder": "#70839B",
+                "board": "#D8E7F4", "hub": "#B4D0E6",
+                "board_border": "#365F8A", "board_text": "#213E5A",
+                "board_disabled": "#C8D4DF", "hub_disabled": "#B3C0CC",
+                "board_disabled_border": "#9AAAB9", "board_disabled_text": "#8395A5",
+            }
+
+        self.setStyleSheet(f"""
+            QMainWindow, QWidget#centralWidget {{
+                background-color: {c['window']};
+            }}
+            QWidget#infoboxesContainer {{ background-color: transparent; }}
+
+            QFrame#headerFrame {{
+                background-color: {c['header']};
+                border: 1px solid {c['header_edge']};
+                border-radius: 10px;
+            }}
+            QLabel#headerTitle {{ color: #FFFFFF; font-size: 29px; font-weight: 700; }}
+            QLabel#headerSubtitle {{ color: #C5D5E5; font-size: 13px; }}
+            QLabel#themeLabel {{ color: #DCE9F6; font-size: 12px; }}
+
+            QGroupBox {{
+                background-color: {c['card']};
+                color: {c['text']};
+                border: 2px solid {c['border']};
+                border-radius: 9px;
+                margin-top: 10px;
+                padding: 11px;
+                font-size: 15px;
+                font-weight: 600;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+            }}
+            QGroupBox:disabled {{
+                background-color: {c['locked']};
+                color: {c['locked_text']};
+                border: 2px dashed {c['locked_border']};
+            }}
+
+            QLabel {{ color: {c['text']}; font-weight: normal; }}
+            QLabel#stepDescription {{ color: {c['muted']}; }}
+            QLabel#sectionStatus {{ color: {c['ready']}; font-size: 11px; font-weight: 700; }}
+            QLabel:disabled, QLabel#stepDescription:disabled,
+            QLabel#sectionStatus:disabled {{ color: {c['locked_text']}; }}
+
+            QPushButton {{
+                background-color: {c['accent']};
+                color: #FFFFFF;
+                border: 1px solid {c['accent']};
+                border-radius: 6px;
+                padding: 8px 11px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background-color: {c['accent_hover']}; }}
+            QPushButton:disabled {{
+                background-color: {c['disabled_button']};
+                border: 1px solid {c['locked_border']};
+                color: {c['locked_text']};
+            }}
+            QPushButton#headerButton {{
+                background-color: {c['header_button']};
+                border: 1px solid {c['header_edge']};
+                color: #FFFFFF;
+            }}
+            QPushButton#headerButton:hover {{ background-color: {c['accent']}; }}
+
+            QLineEdit {{
+                background-color: {c['input']};
+                color: {c['text']};
+                border: 1px solid {c['input_border']};
+                border-radius: 5px;
+                padding: 5px 7px;
+                selection-background-color: {c['accent']};
+            }}
+            QLineEdit:disabled {{
+                background-color: {c['disabled_input']};
+                color: {c['locked_text']};
+                border: 1px solid {c['locked_border']};
+            }}
+
+            QComboBox {{
+                background-color: {c['header_button']};
+                color: #FFFFFF;
+                border: 1px solid {c['header_edge']};
+                border-radius: 6px;
+                padding: 6px 14px;
+                min-width: 95px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {c['card']};
+                color: {c['text']};
+                selection-background-color: {c['accent']};
+                selection-color: #FFFFFF;
+            }}
+
+            QTextEdit#logOutput {{
+                background-color: {c['log']};
+                color: #F1F5FA;
+                border: 1px solid {c['log_border']};
+                border-radius: 7px;
+                padding: 8px;
+                font-family: Consolas, monospace;
+                font-size: 12px;
+            }}
+            QPushButton#dutPosition {{
+                background-color: {c['accent']};
+                color: #FFFFFF;
+                border: 1px solid {c['border']};
+                border-radius: 18px;
+                padding: 0;
+                font-weight: 700;
+            }}
+            QPushButton#dutPosition:checked {{ background-color: #108A66; }}
+            QPushButton#dutPosition:disabled {{
+                background-color: {c['disabled_button']};
+                border: 1px solid {c['locked_border']};
+                color: {c['locked_text']};
+            }}
+        """)
+
+        # DUTSelector draws its own circles: CSS alone would not recolor them.
+        self.dut_selector.set_draw_colors({
+            "border": c["board_border"], "board": c["board"],
+            "hub": c["hub"], "text": c["board_text"],
+            "disabled_border": c["board_disabled_border"],
+            "disabled_board": c["board_disabled"],
+            "disabled_hub": c["hub_disabled"],
+            "disabled_text": c["board_disabled_text"],
+        })
+
+        self.color_theme = theme
 
     def init_ui(self):
         self.layout = QVBoxLayout(self.central_widget)
@@ -284,39 +407,28 @@ class MainWindow(QMainWindow):
         # HEADER WITH TITLE AND SHOW/HIDE LOG
         # ====================================
         self.header_frame = QFrame()
-        self.header_frame.setStyleSheet("""
-            .QFrame {
-                background-color: #2c3e50;
-                border: 2px solid #34495e;
-                border-radius: 8px;
-            }
-        """)
+        self.header_frame.setObjectName("headerFrame")
         self.frame_layout = QHBoxLayout(self.header_frame)
         self.header_text = QLabel("PROJECT SUNDIAL")
+        self.header_text.setObjectName("headerTitle")
         self.subheader_text = QLabel("Automated Single Event Effects Testing")
+        self.subheader_text.setObjectName("headerSubtitle")
 
-        self.header_text.setStyleSheet("""
-            font-size: 30px;
-            font-weight: demibold;
-            color: white;
-        """)
-
-        self.subheader_text = QLabel("Automated Single Event Effects Testing")
-
-        self.subheader_text.setStyleSheet("""
-            font-size: 14px;
-            color: #bdc3c7;
-        """)
-        
-        self.toggle_log = QPushButton("Show Log")
+        self.toggle_log = QPushButton("Hide Log")
         self.test_motors = QPushButton("Test Motors")
+        self.toggle_log.setObjectName("headerButton")
+        self.test_motors.setObjectName("headerButton")
         self.toggle_log.clicked.connect(self.show_hide_log)
+
+        self.theme_select = QPushButton("Switch Color Theme")
+        self.theme_select.clicked.connect(self.apply_theme)
         self.title_layout = QVBoxLayout()
         self.title_layout.addWidget(self.header_text)
         self.title_layout.addWidget(self.subheader_text)
         self.frame_layout.addLayout(self.title_layout, 10)
         self.frame_layout.addWidget(self.test_motors, 1)
         self.frame_layout.addWidget(self.toggle_log, 1)
+        self.frame_layout.addWidget(self.theme_select)
         self.layout.addWidget(self.header_frame, 1)
 
         # HORIZONTAL LAYOUT FOR THE BOXES
@@ -439,12 +551,13 @@ class MainWindow(QMainWindow):
 
         self.dut_selector = DUTSelector()
         self.testing_setup.add_item(self.dut_selector)
-        self.testing_setup.setEnabled(self.rp_connected and self.motors())
+        self.testing_setup.setEnabled(self.rp_connected and self.motors)
 
         self.infoboxes_layout.addWidget(self.testing_setup, 1)
 
         # Create a widget to hold all 3 InfoBoxes
         self.infoboxes_container = QWidget()
+        self.infoboxes_container.setObjectName("infoboxesContainer")
         self.infoboxes_container.setLayout(self.infoboxes_layout)
 
         # Create vertical splitter
@@ -456,14 +569,9 @@ class MainWindow(QMainWindow):
 
         # Bottom section: Log
         self.log_output = QTextEdit()
+        self.log_output.setObjectName("logOutput")
         self.log_output.setReadOnly(True)
         self.log_output.setPlaceholderText("Log outputs will appear here...")
-        self.log_output.setStyleSheet("""
-            background-color: #353535;
-            color: white;
-            border: 2px solid #444444;
-            border-radius: 5px;
-        """)
 
         self.splitter.addWidget(self.log_output)
 
@@ -586,11 +694,12 @@ class MainWindow(QMainWindow):
         color = colors.get(level, "#FFFFFF")
 
         self.log_output.append(
-            f'<span style="color: {color};">{message}</span>'
+            f'<span style="color: {color};">{escape(str(message))}</span>'
         )
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")  # More consistent widget rendering across OS themes
 
     window = MainWindow()
     window.showMaximized()
