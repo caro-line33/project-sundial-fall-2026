@@ -516,36 +516,50 @@ class MainWindow(QMainWindow):
         self.motor_pin_setup.setEnabled(False)
 
     def save_motor_pins(self):
-        en17 = int(self.en_17.text())
-        dir17 = int(self.dir_17.text())
-        step17 = int(self.step_17.text())
-        m0 = int(self.M0_17.text())
-        m1 = int(self.M1_17.text())
-        m2 = int(self.M2_17.text())
-        en23 = int(self.en_23.text())
-        step23 = int(self.step_23.text())
-        dir23 = int(self.dir_23.text())
+        self.log("Saving motor pin connections to motor_pin_config.json")
 
-        config = {
-            "nema17": {
-                "dir": dir17,
-                "step": step17,
-                "enable": en17,
-                "m0": m0,
-                "m1": m1,
-                "m2": m2
-            },
-            "nema23": {
-                "dir": dir23,
-                "step": step23,
-                "enable": en23
+        try:
+            en17 = int(self.en_17.text())
+            dir17 = int(self.dir_17.text())
+            step17 = int(self.step_17.text())
+            self.log(f"Nema 17 Connections: enable pin: {en17}, dir pin: {dir17}, step pin: {step17}")
+            m0 = int(self.M0_17.text())
+            m1 = int(self.M1_17.text())
+            m2 = int(self.M2_17.text())
+            self.log(f"Nema 17 Microstep Connections: M0 pin: {m0}, M1 pin: {m1}, M2 pin: {m2}")
+            en23 = int(self.en_23.text())
+            step23 = int(self.step_23.text())
+            dir23 = int(self.dir_23.text())
+            self.log(f"Nema 23 Connections: enable pin: {en23}, dir pin: {dir23}, step pin: {step23}")
+
+            config = {
+                "nema17": {
+                    "dir": dir17,
+                    "step": step17,
+                    "enable": en17,
+                    "m0": m0,
+                    "m1": m1,
+                    "m2": m2
+                },
+                "nema23": {
+                    "dir": dir23,
+                    "step": step23,
+                    "enable": en23
+                }
             }
-        }
 
-        with open("motor_pin_config.json", "w") as file:
-            json.dump(config, file, indent=4)
+            with open("motor_pin_config.json", "w") as file:
+                json.dump(config, file, indent=4)
 
+        except ValueError as e:
+            self.log(f"Invalid pin configuration: {e}", "error")
+            return
 
+        except OSError as e:
+            self.log(f"Could not save file: {e}", "error")
+            return
+
+        self.log("Motor pin configuration saved!", "success")
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
