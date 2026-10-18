@@ -30,3 +30,27 @@ class ConnectWorker(QThread):
         except Exception as e:
             ssh.close()
             self.error.emit(str(e))
+
+class MotorWorker(QThread):
+    success = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, controller, motor, steps, direction):
+        super().__init__()
+
+        self.controller = controller
+        self.motor = motor
+        self.steps = steps
+        self.direction = direction
+
+    def run(self):
+        try:
+            result = self.controller.move_motor(
+                self.motor,
+                self.steps,
+                self.direction
+            )
+            self.success.emit(result)
+
+        except Exception as e:
+            self.error.emit(str(e))

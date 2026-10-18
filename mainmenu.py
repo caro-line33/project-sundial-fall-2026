@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from workers import ConnectWorker
-
+import json
 import paramiko
 
 ssh = paramiko.SSHClient()
@@ -227,14 +227,6 @@ class MainWindow(QMainWindow):
         self.init_ui()
 
         self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2C2C2C;
-            }
-
-            QWidget {
-                color: white;
-            }
-
             QGroupBox {
                 background-color: #353535;
                 border: 2px solid #555555;
@@ -243,16 +235,36 @@ class MainWindow(QMainWindow):
                 padding: 10px;
             }
 
+            QGroupBox:disabled {
+                background-color: #252525;
+                border: 2px solid #404040;
+                color: #777777;
+            }
+
+            QLabel:disabled {
+                color: #777777;
+            }
+
             QPushButton {
                 background-color: #454545;
                 color: white;
                 border-radius: 5px;
                 padding: 8px;
             }
-                
+
+            QPushButton:disabled {
+                background-color: #303030;
+                color: #777777;
+            }
+
             QLineEdit {
-                background-color: #FFFFFF;
+                background-color: white;
                 color: #34495E;
+            }
+
+            QLineEdit:disabled {
+                background-color: #303030;
+                color: #888888;
             }
         """)
 
@@ -347,7 +359,7 @@ class MainWindow(QMainWindow):
         self.motor_pin_setup = InfoBox(
             "2. Initialize Motors",
             "Configure Raspberry Pi GPIO connections",
-            "Set Pins"
+            "Test Motors"
         )
 
         # NEMA 23
@@ -396,8 +408,12 @@ class MainWindow(QMainWindow):
         self.motor_info.addWidget(self.nema23_info)
         self.motor_info.addWidget(self.nema17_info)
 
+
+        self.set_motor_pin_info_button = QPushButton("Set Pins")
+        self.set_motor_pin_info_button.clicked.connect(self.save_motor_pins)
         # Add motor layout into InfoBox
         self.motor_pin_setup.add_layout(self.motor_info)
+        self.motor_pin_setup.add_item(self.set_motor_pin_info_button)
         self.motor_pin_setup.setEnabled(self.rp_connected)
         self.infoboxes_layout.addWidget(self.motor_pin_setup, 1)
 
@@ -414,6 +430,7 @@ class MainWindow(QMainWindow):
 
         self.dut_selector = DUTSelector()
         self.testing_setup.add_item(self.dut_selector)
+        self.testing_setup.setEnabled(self.rp_connected and self.motors())
 
         self.infoboxes_layout.addWidget(self.testing_setup, 1)
 
@@ -471,8 +488,8 @@ class MainWindow(QMainWindow):
 
         self.worker = ConnectWorker(ip, port, username, password)
 
-        self.worker.success.connect(self.connection_success)
-        self.worker.error.connect(self.connection_error)
+        self.worker.success.connect(self.rp_connection_success)
+        self.worker.error.connect(self.rp_connection_error)
         self.worker.finished.connect(
             lambda: self.rp_connect_button.setEnabled(True)
         )
@@ -480,17 +497,50 @@ class MainWindow(QMainWindow):
         self.rp_connect_button.setEnabled(False)
         self.worker.start()
 
-    def connection_success(self, ssh):
+    def rp_connection_success(self, ssh):
         if self.ssh is not None:
             self.ssh.close()
         self.ssh = ssh
         self.log("Successfully connected!", "success")
         self.rp_connected = True
         self.motor_pin_setup.setEnabled(True)
+        self.testing_setup.setEnabled(self.rp_connected and self.motors())
 
-    def connection_error(self, message):
+    def rp_connection_error(self, message):
         self.log(f"Connection failed: {message}", "error")
         self.motor_pin_setup.setEnabled(False)
+
+    def save_motor_pins(self):
+        en17 = int(self.en_17.text())
+        dir17 = int(self.dir_17.text())
+        step17 = int(self.step_17.text())
+        m0 = int(self.M0_17.text())
+        m1 = int(self.M2_17.text())
+        m2 = int(self.M2_17.text())
+        en23 = int(self.en_23.text())
+        step23 = int(self.step_23.text())
+        dir23 = int(self.dir_23.text())
+
+        config = {
+            "nema17": {
+                "dir": dir17,
+                "step": step17,
+                "enable": en17,
+                "m0": m0,
+                "m1": m1,
+                "m2": m2
+            },
+            "nema23": {
+                "dir": dir23,
+                "step": step23,
+                "enable": en23
+            }
+        }
+
+        with open("motor_pin_config.json", "w") as file:
+            json.dump(config, file, indent=4)
+
+
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.

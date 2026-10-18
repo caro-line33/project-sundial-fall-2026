@@ -1,59 +1,50 @@
-import paramiko
-from PyQt6.QtCore import QThread, pyqtSignal
-import time
-
-class ControlWorker(QThread):
-    progress = pyqtSignal(str)
-    success = pyqtSignal(str)
-    def __init__(self, controller, command=None):
-        super().__init__()
-        self.controller = controller
-        self.command = command
-
-    def run(self):
-        self.progress.emit("Attempting to connect RP")
-
-        try:
-            self.controller.connect_RP()
-        except Exception as e:
-            self.progress.emit(f"Error executing command '{self.command}': {e}")
-            self.success.emit("Failed to connect to Raspberry Pi")
-            return
-        self.progress.emit("Successfully connected to Raspberry Pi")
-
 class Controller:
-    # Get information from the user about the Raspberry Pi connection through input
-    # Pass info into controller object
-    def __init__(self, ip="35.12.217.8", username = "ece489", password = "Sundial"):
-        self.ip = ip
-        self.username = username
-        self.password = password
-        self.ssh_client = None
+    def __init__(self, ssh):
+        self.ssh = ssh
 
-        self.RP_connected = False
-        self.motors_connected = False
-        self.DUT_geometry = False
-        self.device_locations = False
-        self.ready = self.system_ready()
+    def move_17(self, steps, direction, en, step, dir, m0, m1, m2, microsteps=1):
 
-    def system_ready(self):
-        return self.RP_connected and self.motors_connected and self.DUT_geometry and self.device_locations
+        microstep_pin_levels = {
+            1: [0, 0, 0],
+            2: [1, 0, 0],
+            4: [0, 1, 0],
+            8: [1, 1, 0],
+            16: [0, 0, 1],
+            32: [0, 1, 1]
+        }
 
-    def connect_RP(self):
-        try:
-            self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh_client.connect(self.ip, username=self.username, password=self.password)
-            print(f"Connected to Raspberry Pi at {self.ip} via SSH")
-        except Exception as e:
-            print(f"Error connecting to Raspberry Pi: {e}")
+        m2, m1, m0 = microstep_pin_levels[microsteps]
+        command = (
+            f"python3 /home/pi/nema17.py "
+            f"nema17 {int(en)} {int(steps)} {int(direction)}"
+            f"{int(m0)} {int(m1)} {int(m2)} {int(microsteps)}"
+        )
 
-    def disconnect_RP(self):
-        if self.ssh_client:
-            self.ssh_client.close()
-            print("Disconnected from Raspberry Pi")
-        else:
-            print("No active connection to disconnect.")
+        stdin, stdout, stderr = self.ssh.exec_command(command)
 
-    def execute(self, command):
-        pass
+        output = stdout.read().decode()
+        error = stderr.read().decode()
+        exit_code = stdout.channel.recv_exit_status()
+
+        if exit_code != 0:
+            raise RuntimeError(error or "Motor command failed")
+
+        return output
+
+    def move_23(self, steps, direction, en, step, dir):
+
+        command = (
+            f"python3 /home/pi/nema23.py "
+            f"nema23 {int(en)} {int(steps)} {int(direction)}"
+        )
+
+        stdin, stdout, stderr = self.ssh.exec_command(command)
+
+        output = stdout.read().decode()
+        error = stderr.read().decode()
+        exit_code = stdout.channel.recv_exit_status()
+
+        if exit_code != 0:
+            raise RuntimeError(error or "Motor command failed")
+
+        return output
