@@ -5,6 +5,12 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QFrame, QSplitter, QTextEdit
 )
 from PyQt6.QtCore import Qt
+from workers import ConnectWorker
+
+import paramiko
+
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 import math
 
@@ -202,6 +208,21 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
+        # RASPBERRY PI CONNECTION
+        self.ssh = None
+        self.ip_address = None
+        self.username = None
+        self.password = None
+        self.ssh_port = None
+
+        # MOTOR CONNECTIONS
+        self.nema_23_controller = None
+        self.nema_17_controller = None
+
+        @property
+        def motors(self):
+            return self.nema_23_controller is not None and self.nema_17_controller is not None
+        
         self.init_ui()
 
     def init_ui(self):
@@ -284,6 +305,8 @@ class MainWindow(QMainWindow):
         self.connect_RP.add_item(self.password_box)
         self.connect_RP.add_item(self.ssh_port_box)
 
+        self.rp_connect_button = self.connect_RP.button
+        self.rp_connect_button.clicked.connect(self.connect_rp_function)
         self.infoboxes_layout.addWidget(self.connect_RP, 1)
 
         # ====================================
@@ -384,9 +407,47 @@ class MainWindow(QMainWindow):
         self.splitter.setSizes([450, 200])
 
         # Hide log initially
-        self.log_output.show()
+        self.log_output.show() 
 
-        
+    def connect_rp_function(self):
+        ip = self.ip_address_box.text().strip()
+        username = self.username_box.text().strip()
+        password = self.password_box.text()
+        port_text = self.ssh_port_box.text().strip()
+
+        if not (ip and username and password and port_text):
+            self.log("Please input all parameters", "warning")
+            return
+
+        try:
+            port = int(port_text)
+            if not 1 <= port <= 65535:
+                raise ValueError()
+        except ValueError:
+            self.log("Invalid port", "error")
+            return
+
+        self.log("Connecting to Raspberry Pi...")
+
+        self.worker = ConnectWorker(ip, port, username, password)
+
+        self.worker.success.connect(self.connection_success)
+        self.worker.error.connect(self.connection_error)
+        self.worker.finished.connect(
+            lambda: self.rp_connect_button.setEnabled(True)
+        )
+
+        self.rp_connect_button.setEnabled(False)
+        self.worker.start()
+
+    def connection_success(self, ssh):
+        if self.ssh is not None:
+            self.ssh.close()
+        self.ssh = ssh
+        self.log("Successfully connected!", "success")
+
+    def connection_error(self, message):
+        self.log(f"Connection failed: {message}", "error")
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
@@ -397,6 +458,20 @@ class MainWindow(QMainWindow):
             self.log_output.show()
             self.toggle_log.setText("Hide Log")
             self.splitter.setSizes([450, 200])
+
+    def log(self, message, level="info"):
+        colors = {
+            "info": "#FFFFFF",
+            "success": "#4CAF50",
+            "warning": "#FFC107",
+            "error": "#F44336"
+        }
+
+        color = colors.get(level, "#FFFFFF")
+
+        self.log_output.append(
+            f'<span style="color: {color};">{message}</span>'
+        )
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
