@@ -317,7 +317,7 @@ class MainWindow(QMainWindow):
 
         self.username_box = EntryLine(
             prompt="Username:",
-            default_value="ece 489"
+            default_value="ece489"
         )
 
         self.password_box = EntryLine(
