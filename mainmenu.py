@@ -486,11 +486,11 @@ class MainWindow(QMainWindow):
         self.ssh = ssh
         self.log("Successfully connected!", "success")
         self.rp_connected = True
-        self.motor_pin_setEnabled(True)
+        self.motor_pin_setup.setEnabled(True)
 
     def connection_error(self, message):
         self.log(f"Connection failed: {message}", "error")
-        self.motor_pin_setEnabled(False)
+        self.motor_pin_setup.setEnabled(False)
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
