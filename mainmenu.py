@@ -267,6 +267,10 @@ class MainWindow(QMainWindow):
                 background-color: #303030;
                 color: #888888;
             }
+
+            QMainWindow {
+                background-color: #E8E8E8;
+            }
         """)
 
     @property
