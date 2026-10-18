@@ -198,6 +198,33 @@ class DUTSelector(QWidget):
             "DUT"
         )
 
+class MotorTestWindow(QWidget):
+    def __init__(self, ssh):
+        super().__init__()
+        self.ssh = ssh
+        self.setWindowTitle("Motor Test Window")
+        self.setGeometry(150, 150, 400, 300)
+
+        layout = QVBoxLayout()
+
+        self.nema17_direction = QPushButton("Clockwise")
+
+        self.test_nema17_button = QPushButton("Test NEMA 17 Motor")
+        self.test_nema17_button.clicked.connect(self.test_nema17_motor)
+        layout.addWidget(self.test_nema17_button)
+
+        self.test_nema23_button = QPushButton("Test NEMA 23 Motor")
+        self.test_nema23_button.clicked.connect(self.test_nema23_motor)
+        layout.addWidget(self.test_nema23_button)
+
+        self.setLayout(layout)
+
+    def test_nema17_motor(self):
+        pass
+
+    def test_nema23_motor(self):
+        pass
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -227,9 +254,7 @@ class MainWindow(QMainWindow):
         self.color_theme = "Dark"
         self.apply_theme()
 
-    @property
-    def motors(self):
-        return self.nema_23_controller is not None and self.nema_17_controller is not None
+        self.motor_pins = False
 
     def apply_theme(self):
         if self.color_theme == "Light":
@@ -415,9 +440,7 @@ class MainWindow(QMainWindow):
         self.subheader_text.setObjectName("headerSubtitle")
 
         self.toggle_log = QPushButton("Hide Log")
-        self.test_motors = QPushButton("Test Motors")
         self.toggle_log.setObjectName("headerButton")
-        self.test_motors.setObjectName("headerButton")
         self.toggle_log.clicked.connect(self.show_hide_log)
 
         self.theme_select = QPushButton("Switch Color Theme")
@@ -426,7 +449,7 @@ class MainWindow(QMainWindow):
         self.title_layout.addWidget(self.header_text)
         self.title_layout.addWidget(self.subheader_text)
         self.frame_layout.addLayout(self.title_layout, 10)
-        self.frame_layout.addWidget(self.test_motors, 1)
+
         self.frame_layout.addWidget(self.toggle_log, 1)
         self.frame_layout.addWidget(self.theme_select)
         self.layout.addWidget(self.header_frame, 1)
@@ -532,6 +555,11 @@ class MainWindow(QMainWindow):
 
         self.set_motor_pin_info_button = QPushButton("Set Pins")
         self.set_motor_pin_info_button.clicked.connect(self.save_motor_pins)
+
+        self.test_motors_button = self.motor_pin_setup.button
+        self.test_motors_button.clicked.connect(self.open_motor_test_window)
+        self.test_motors_button.setEnabled(self.rp_connected and self.motor_pins)
+
         # Add motor layout into InfoBox
         self.motor_pin_setup.add_layout(self.motor_info)
         self.motor_pin_setup.add_item(self.set_motor_pin_info_button)
@@ -621,7 +649,7 @@ class MainWindow(QMainWindow):
         self.log("Successfully connected!", "success")
         self.rp_connected = True
         self.motor_pin_setup.setEnabled(True)
-        self.testing_setup.setEnabled(self.rp_connected and self.motors)
+        self.testing_setup.setEnabled(self.rp_connected and self.motor_pins)
 
     def rp_connection_error(self, message):
         self.log(f"Connection failed: {message}", "error")
@@ -672,6 +700,15 @@ class MainWindow(QMainWindow):
             return
 
         self.log("Motor pin configuration saved!", "success")
+        self.motor_pins = True
+        self.test_motors_button.setEnabled(self.rp_connected and self.motor_pins)
+
+    def test_motors_function(self):
+        pass
+
+    def open_motor_test_window(self):
+        self.motor_window = MotorTestWindow(self.ssh)
+        self.motor_window.show()
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
