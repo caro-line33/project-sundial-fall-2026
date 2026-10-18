@@ -207,6 +207,8 @@ class MotorTestWindow(QWidget):
 
         layout = QHBoxLayout()
 
+        self.read_motor_params()
+
         # NEMA 17 STUFF
         self.nema17_microstep_mode = 1
         self.nema17_direction = 1
@@ -251,6 +253,8 @@ class MotorTestWindow(QWidget):
         layout.addWidget(self.nema23_info)
         self.setLayout(layout)
 
+    def read_motor_params(self):
+        
     def test_nema17_motor(self):
         pass
 
