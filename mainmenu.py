@@ -219,16 +219,13 @@ class MainWindow(QMainWindow):
         # MOTOR CONNECTIONS
         self.nema_23_controller = None
         self.nema_17_controller = None
-
-        @property
-        def motors(self):
-            return self.nema_23_controller is not None and self.nema_17_controller is not None
         
         self.init_ui()
 
         self.setStyleSheet("""
             QGroupBox {
                 background-color: #353535;
+                color: white;
                 border: 2px solid #555555;
                 border-radius: 8px;
                 margin-top: 10px;
@@ -237,8 +234,12 @@ class MainWindow(QMainWindow):
 
             QGroupBox:disabled {
                 background-color: #252525;
+                color: #777777;
                 border: 2px solid #404040;
-                color: #FFFFF0;
+            }
+
+            QLabel {
+                color: white;
             }
 
             QLabel:disabled {
@@ -267,6 +268,10 @@ class MainWindow(QMainWindow):
                 color: #888888;
             }
         """)
+
+    @property
+    def motors(self):
+        return self.nema_23_controller is not None and self.nema_17_controller is not None
 
     def init_ui(self):
         self.layout = QVBoxLayout(self.central_widget)
@@ -515,7 +520,7 @@ class MainWindow(QMainWindow):
         dir17 = int(self.dir_17.text())
         step17 = int(self.step_17.text())
         m0 = int(self.M0_17.text())
-        m1 = int(self.M2_17.text())
+        m1 = int(self.M1_17.text())
         m2 = int(self.M2_17.text())
         en23 = int(self.en_23.text())
         step23 = int(self.step_23.text())
