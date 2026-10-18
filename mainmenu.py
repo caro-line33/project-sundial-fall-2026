@@ -225,6 +225,31 @@ class MainWindow(QMainWindow):
         
         self.init_ui()
 
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #2C2C2C;
+            }
+
+            QWidget {
+                color: white;
+            }
+
+            QGroupBox {
+                background-color: #353535;
+                border: 1px solid #555555;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding: 10px;
+            }
+
+            QPushButton {
+                background-color: #454545;
+                color: white;
+                border-radius: 5px;
+                padding: 8px;
+            }
+        """)
+        
     def init_ui(self):
         self.layout = QVBoxLayout(self.central_widget)
 
@@ -410,6 +435,8 @@ class MainWindow(QMainWindow):
         self.log_output.show() 
 
     def connect_rp_function(self):
+
+        self.log("Attempting connection to Raspberry Pi", "info")
         ip = self.ip_address_box.text().strip()
         username = self.username_box.text().strip()
         password = self.password_box.text()
