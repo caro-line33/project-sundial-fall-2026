@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
 
         # RASPBERRY PI CONNECTION
         self.ssh = None
+        self.rp_connected = False
         self.ip_address = None
         self.username = None
         self.password = None
@@ -397,8 +398,9 @@ class MainWindow(QMainWindow):
 
         # Add motor layout into InfoBox
         self.motor_pin_setup.add_layout(self.motor_info)
-
+        self.motor_pin_setup.setEnabled(self.rp_connected)
         self.infoboxes_layout.addWidget(self.motor_pin_setup, 1)
+
 
         # ====================================
         # 3. TESTING PARAMETERS BOX
@@ -483,9 +485,12 @@ class MainWindow(QMainWindow):
             self.ssh.close()
         self.ssh = ssh
         self.log("Successfully connected!", "success")
+        self.rp_connected = True
+        self.motor_pin_setEnabled(True)
 
     def connection_error(self, message):
         self.log(f"Connection failed: {message}", "error")
+        self.motor_pin_setEnabled(False)
 
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
