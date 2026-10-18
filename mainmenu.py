@@ -209,10 +209,14 @@ class MotorTestWindow(QWidget):
 
         # NEMA 17 STUFF
         self.nema17_microstep_mode = 1
+        self.nema17_direction = 1
 
         self.nema17_info = InfoBox(title="Nema 17", description="Motor Movement Parameters for Nema 17 (Rotation)", button_text="Run Command")
-        self.number_of_steps_17 = EntryLine(prompt = "Number of steps", default_value = " ")
-        self.nema17_direction = QPushButton("Direction: Clockwise")
+        self.nema17_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
+        self.nema17_direction_box = QComboBox(self.nema17_info)
+        self.nema17_direction_box.addItems(["Clockwise", "Counterclockwise"])
+        self.nema17_direction_box.currentIndexChanged.connect(self.update_direction_17)
+
         self.nema17_microstep = QComboBox(self.nema17_info)
         self.nema17_microstep.addItems(["Full Step (1.8 deg)", #  index 0
                                         "1/2 Step (0.9 deg)",  # index 1
@@ -221,19 +225,30 @@ class MotorTestWindow(QWidget):
                                         "1/16 Step (0.1125 deg)", # index 4
                                         "1/32 Step (0.05625 deg)"]) # index 5
         self.nema17_microstep.currentIndexChanged.connect(self.update_microstep_17)
-
         self.test_nema17_button = self.nema17_info.button
         self.test_nema17_button.clicked.connect(self.test_nema17_motor)
+
+        self.nema17_info.add_item(self.nema17_number_of_steps)
+        self.nema17_info.add_item(self.nema17_direction_box)
+        self.nema17_info.add_item(self.nema17_microstep)
         layout.addWidget(self.nema17_info)
 
         self.test_nema23_button = QPushButton("Test NEMA 23 Motor")
         self.test_nema23_button.clicked.connect(self.test_nema23_motor)
-        layout.addWidget(self.test_nema23_button)
-
 
         # NEMA 23 STUFF
-        self.nema23_info = InfoBox(title="Nema 23", description="Motor Movement Parameters for Nema 23 (Linear)", button_text="Run Command")
+        self.nema23_direction = 1
+        self.nema23_steps = 10
 
+        self.nema23_info = InfoBox(title="Nema 23", description="Motor Movement Parameters for Nema 23 (Linear)", button_text="Run Command")
+        self.nema23_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
+        self.nema23_direction_box = QComboBox(self.nema23_info)
+        self.nema23_direction_box.addItems(["Forwards", "Backwards"])
+        self.nema23_direction_box.currentIndexChanged.connect(self.update_direction_23)
+
+        self.nema23_info.add_item(self.nema23_number_of_steps)
+        self.nema23_info.add_item(self.nema23_direction_box)
+        layout.addWidget(self.nema23_info)
         self.setLayout(layout)
 
     def test_nema17_motor(self):
@@ -245,6 +260,14 @@ class MotorTestWindow(QWidget):
     def update_microstep_17(self):
         self.nema17_microstep_mode = 2 ** int(self.nema17_microstep.currentIndex())
         print(self.nema17_microstep_mode)
+
+    def update_direction_17(self):
+            self.nema17_direction = int(self.nema17_direction_box.currentIndex())
+            print(self.nema17_direction)
+
+    def update_direction_23(self):
+        self.nema23_direction = int(self.nema23_direction_box.currentIndex())
+        print(self.nema23_direction)
 
 class MainWindow(QMainWindow):
     def __init__(self):
