@@ -205,17 +205,34 @@ class MotorTestWindow(QWidget):
         self.setWindowTitle("Motor Test Window")
         self.setGeometry(150, 150, 400, 300)
 
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
 
-        self.nema17_direction = QPushButton("Clockwise")
+        # NEMA 17 STUFF
+        self.nema17_microstep_mode = 1
 
-        self.test_nema17_button = QPushButton("Test NEMA 17 Motor")
+        self.nema17_info = InfoBox(title="Nema 17", description="Motor Movement Parameters for Nema 17 (Rotation)", button_text="Run Command")
+        self.number_of_steps_17 = EntryLine(prompt = "Number of steps", default_value = " ")
+        self.nema17_direction = QPushButton("Direction: Clockwise")
+        self.nema17_microstep = QComboBox(self.nema17_info)
+        self.nema17_microstep.addItems(["Full Step (1.8 deg)", #  index 0
+                                        "1/2 Step (0.9 deg)",  # index 1
+                                        "1/4 Step (0.45 deg)", # index 2
+                                        "1/8 Step (0.225 deg)", # index 3
+                                        "1/16 Step (0.1125 deg)", # index 4
+                                        "1/32 Step (0.05625 deg)"]) # index 5
+        self.nema17_microstep.currentIndexChanged.connect(self.update_microstep_17)
+
+        self.test_nema17_button = self.nema17_info.button
         self.test_nema17_button.clicked.connect(self.test_nema17_motor)
-        layout.addWidget(self.test_nema17_button)
+        layout.addWidget(self.nema17_info)
 
         self.test_nema23_button = QPushButton("Test NEMA 23 Motor")
         self.test_nema23_button.clicked.connect(self.test_nema23_motor)
         layout.addWidget(self.test_nema23_button)
+
+
+        # NEMA 23 STUFF
+        self.nema23_info = InfoBox(title="Nema 23", description="Motor Movement Parameters for Nema 23 (Linear)", button_text="Run Command")
 
         self.setLayout(layout)
 
@@ -224,6 +241,10 @@ class MotorTestWindow(QWidget):
 
     def test_nema23_motor(self):
         pass
+
+    def update_microstep_17(self):
+        self.nema17_microstep_mode = 2 ** int(self.nema17_microstep.currentIndex())
+        print(self.nema17_microstep_mode)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -702,9 +723,6 @@ class MainWindow(QMainWindow):
         self.log("Motor pin configuration saved!", "success")
         self.motor_pins = True
         self.test_motors_button.setEnabled(self.rp_connected and self.motor_pins)
-
-    def test_motors_function(self):
-        pass
 
     def open_motor_test_window(self):
         self.motor_window = MotorTestWindow(self.ssh)
