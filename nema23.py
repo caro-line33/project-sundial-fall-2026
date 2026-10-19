@@ -42,9 +42,9 @@ try:
     # Move motor
     for _ in range(steps):
         STEP_CTRL.on()
-        sleep(0.01)
+        sleep(0.005)
         STEP_CTRL.off()
-        sleep(0.01)
+        sleep(0.005)
 
     print(f"Successfully moved NEMA 23 by {steps} pulses")
 

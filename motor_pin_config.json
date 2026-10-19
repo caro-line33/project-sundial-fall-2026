@@ -8,8 +8,8 @@
         "m2": 18
     },
     "nema23": {
-        "dir": 27,
-        "step": 17,
-        "enable": 22
+        "dir": 22,
+        "step": 23,
+        "enable": 24
     }
 }

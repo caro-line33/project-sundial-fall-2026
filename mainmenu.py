@@ -574,9 +574,9 @@ class MainWindow(QMainWindow):
         # NEMA 23
         self.nema23_info = QGroupBox("NEMA 23 Connections")
 
-        self.en_23 = EntryLine("EN Pin:", 22)
-        self.dir_23 = EntryLine("DIR Pin:", 27)
-        self.step_23 = EntryLine("STEP Pin:", 17)
+        self.en_23 = EntryLine("EN Pin:", 24)
+        self.dir_23 = EntryLine("DIR Pin:", 22)
+        self.step_23 = EntryLine("STEP Pin:", 23)
 
         self.nema23_layout = QVBoxLayout(self.nema23_info)
 
