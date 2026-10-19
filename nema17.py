@@ -1,42 +1,84 @@
-import sys
+
 from time import sleep
-import pigpio
+from gpiozero import OutputDevice
+from gpiozero.pins.lgpio import LGPIOFactory
+import sys
 
-# GET PIN NUMBERS AND MICROSTEPPING MODE INFO FROM COMMAND LINE ARGUMENTS
-enable_pin = sys.argv[1]
-steps_pin = sys.argv[2]
-dir_pin = sys.argv[3]
-m0 = sys.argv[4]
-m1 = sys.argv[5]
-m2 = sys.argv[6]
-microsteps = sys.argv[7]
+# Read parameters sent through SSH
+enable_pin = int(sys.argv[1])
+dir_pin = int(sys.argv[2])
+step_pin = int(sys.argv[3])
+m0 = int(sys.argv[4])
+m1 = int(sys.argv[5])
+m2 = int(sys.argv[6])
+microstepping_mode = int(sys.argv[7])
+direction = int(sys.argv[8])
+steps = int(sys.argv[9])
 
-# CONNECT TO PIGPIO DAEMON
-pi = pigpio.pi()
+# Validate parameters
+if microstepping_mode not in (1, 2, 4, 8, 16, 32):
+    raise ValueError("Invalid microstepping mode")
 
-# DETERMINE WHAT TO WRITE TO M0, M1, M2 BASED ON SELECTED MICROSTEPPING MODE
+if direction not in (0, 1):
+    raise ValueError("Direction must be 0 or 1")
+
+if steps < 0:
+    raise ValueError("Steps cannot be negative")
+
+pi5 = LGPIOFactory()
+
+# Initialize GPIO objects
+ENABLE_CTRL = OutputDevice(
+    enable_pin,
+    pin_factory=pi5,
+    active_high=False,
+    initial_value=False
+)
+
+DIR_CTRL = OutputDevice(dir_pin, pin_factory=pi5)
+STEP_CTRL = OutputDevice(step_pin, pin_factory=pi5)
+
+M0 = OutputDevice(m0, pin_factory=pi5)
+M1 = OutputDevice(m1, pin_factory=pi5)
+M2 = OutputDevice(m2, pin_factory=pi5)
+
+# DRV8825 microstepping lookup table
 microstep_pin_levels = {
-            1: [0, 0, 0],
-            2: [0, 0, 1],
-            4: [0, 1, 0],
-            8: [0, 1, 1],
-            16: [1, 0, 0],
-            32: [1, 1, 0]
-        }
+    1:  [0, 0, 0],
+    2:  [1, 0, 0],
+    4:  [0, 1, 0],
+    8:  [1, 1, 0],
+    16: [0, 0, 1],
+    32: [1, 0, 1]
+}
 
-m0_level, m1_level, m2_level = microstep_pin_levels[microsteps]
+try:
+    # Set microstepping mode
+    M0.value, M1.value, M2.value = microstep_pin_levels[microstepping_mode]
 
-# SET ALL PINS AS OUTPUTS
-pi.set_mode(enable, pigpio.OUTPUT)
-pi.set_mode(steps, pigpio.OUTPUT)
-pi.set_mode(dir, pigpio.OUTPUT)
-pi.set_mode(m0, pigpio.OUTPUT)
-pi.set_mode(m1, pigpio.OUTPUT)
-pi.set_mode(m2, pigpio.OUTPUT)
+    # Set direction
+    DIR_CTRL.value = direction
 
-# WRITE APPROPRIATE LEVELS TO MICROSTEPPING MODE PINS
-pi.write(m0, m0_level)
-pi.write(m1, m1_level)
-pi.write(m2, m2_level)
+    # Enable motor driver
+    ENABLE_CTRL.on()
+    sleep(0.01)
 
-# 
+    # Move motor
+    for _ in range(steps):
+        STEP_CTRL.on()
+        sleep(0.01)
+        STEP_CTRL.off()
+        sleep(0.01)
+
+    print(f"Successfully moved {steps} steps")
+
+finally:
+    # Disable driver and release GPIO
+    ENABLE_CTRL.off()
+
+    DIR_CTRL.close()
+    STEP_CTRL.close()
+    ENABLE_CTRL.close()
+    M0.close()
+    M1.close()
+    M2.close()

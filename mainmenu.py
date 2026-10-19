@@ -199,11 +199,12 @@ class DUTSelector(QWidget):
         )
 
 class MotorTestWindow(QWidget):
-    def __init__(self, ssh):
+    def __init__(self, ssh, parent):
         super().__init__()
         self.ssh = ssh
         self.setWindowTitle("Motor Test Window")
         self.setGeometry(150, 150, 400, 300)
+        self.parent = parent
 
         layout = QHBoxLayout()
 
@@ -254,24 +255,40 @@ class MotorTestWindow(QWidget):
         self.setLayout(layout)
 
     def read_motor_params(self):
-        
+        with open("motor_pin_config.json", "r", encoding='utf-8') as file:
+            motor_data = json.load(file)
+
+        self.nema17_dir_pin = motor_data["nema17"]["dir"]
+        self.nema17_en_pin = motor_data["nema17"]["enable"]
+        self.nema17_step_pin = motor_data["nema17"]["step"]
+        self.nema17_m0_pin = motor_data["nema17"]["m0"]
+        self.nema17_m1_pin = motor_data["nema17"]["m1"]
+        self.nema17_m2_pin = motor_data["nema17"]["m2"]
+
+        self.nema23_dir_pin = motor_data["nema23"]["dir"]
+        self.nema23_step_pin = motor_data["nema23"]["step"]
+        self.nema23_en_pin = motor_data["nema23"]["enable"]
+        self.parent.log("Motor parameters for Nema 23 and Nema 17 read from motor_pin_config.json")
+
     def test_nema17_motor(self):
-        pass
+        num_steps = int(self.nema17_number_of_steps.text().strip())
+        microsteps = self.nema17_microstep_mode
+        direction = self.nema17_direction
 
     def test_nema23_motor(self):
         pass
 
     def update_microstep_17(self):
         self.nema17_microstep_mode = 2 ** int(self.nema17_microstep.currentIndex())
-        print(self.nema17_microstep_mode)
+        self.parent.log(f"Nema 17 microstep mode set to {self.nema17_microstep.currentText()}")
 
     def update_direction_17(self):
-            self.nema17_direction = int(self.nema17_direction_box.currentIndex())
-            print(self.nema17_direction)
-
+        self.nema17_direction = int(self.nema17_direction_box.currentIndex())
+        self.parent.log(f"Nema 17 direction set to {self.nema17_direction_box.currentText()}")
+        
     def update_direction_23(self):
         self.nema23_direction = int(self.nema23_direction_box.currentIndex())
-        print(self.nema23_direction)
+        self.parent.log(f"Nema 23 direction set to {self.nema23_direction_box.currentText()}")
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -752,7 +769,7 @@ class MainWindow(QMainWindow):
         self.test_motors_button.setEnabled(self.rp_connected and self.motor_pins)
 
     def open_motor_test_window(self):
-        self.motor_window = MotorTestWindow(self.ssh)
+        self.motor_window = MotorTestWindow(self.ssh, parent=self)
         self.motor_window.show()
 
     def show_hide_log(self):

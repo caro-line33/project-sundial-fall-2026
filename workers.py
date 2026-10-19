@@ -31,26 +31,85 @@ class ConnectWorker(QThread):
             ssh.close()
             self.error.emit(str(e))
 
-class MotorWorker(QThread):
+class Nema17Worker(QThread):
     success = pyqtSignal(str)
     error = pyqtSignal(str)
 
-    def __init__(self, controller, motor, steps, direction):
+    def __init__(self, ssh, en_pin, dir_pin, step_pin, m0_pin, m1_pin, m2_pin,
+                 direction, steps, microstepping_mode):
+
         super().__init__()
 
-        self.controller = controller
-        self.motor = motor
-        self.steps = steps
+        self.ssh_client = ssh
+        self.en_pin = en_pin
+        self.dir_pin = dir_pin
+        self.step_pin = step_pin
+        self.m0_pin = m0_pin
+        self.m1_pin = m1_pin
+        self.m2_pin = m2_pin
         self.direction = direction
+        self.steps = steps
+        self.microstepping_mode = microstepping_mode
 
     def run(self):
+        if not self.ssh_client:
+            self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
+
         try:
-            result = self.controller.move_motor(
-                self.motor,
-                self.steps,
-                self.direction
+            command = (
+                f"python3 /home/ece489/ece480fall2026 nema17.py " 
+                f"{self.en_pin} {self.dir_pin} {self.step_pin}" # args 1, 2, 3
+                f"{self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode}" # 4, 5, 6, 7
+                f"{self.direction} {self.steps}" # 8, 9
             )
-            self.success.emit(result)
+
+            stdin, stdout, stderr = self.ssh_client.exec_command(command)
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+            
+            if output:
+                self.signal.emit(f"Output: {output}")
+            if error:
+                self.error.emit(f"Error: {error}")
 
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(f"Error executing : {e}")
+
+class Nema23Worker(QThread):
+    success = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, ssh, en_pin, dir_pin, step_pin,
+                 direction, steps):
+
+        super().__init__()
+
+        self.ssh_client = ssh
+        self.en_pin = en_pin
+        self.dir_pin = dir_pin
+        self.step_pin = step_pin
+        self.direction = direction
+        self.steps = steps
+
+    def run(self):
+        if not self.ssh_client:
+            self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
+
+        try:
+            command = (
+                f"python3 /home/ece489/ece480fall2026 nema23.py " 
+                f"{self.en_pin} {self.dir_pin} {self.step_pin}" # args 1, 2, 3
+                f"{self.direction} {self.steps}"  # 4, 5
+            )
+
+            stdin, stdout, stderr = self.ssh_client.exec_command(command)
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+            
+            if output:
+                self.signal.emit(f"Output: {output}")
+            if error:
+                self.error.emit(f"Error: {error}")
+
+        except Exception as e:
+            self.error.emit(f"Error executing : {e}")
