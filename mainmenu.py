@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QFrame, QSplitter, QTextEdit, QComboBox
 )
 from PyQt6.QtCore import Qt, QEvent
-from workers import ConnectWorker
+from workers import ConnectWorker, Nema17Worker, Nema23worker
 import json
 import math
 from html import escape
@@ -32,7 +32,6 @@ class EntryLine(QWidget):
 
     def text(self):
         return self.entry.text()
-
 
 class InfoBox(QGroupBox):
     """One step of the setup wizard, with an explicit available/locked label."""
@@ -77,7 +76,6 @@ class InfoBox(QGroupBox):
 
     def add_layout(self, layout):
         self.entry_boxes.addLayout(layout)
-
 
 class DUTSelector(QWidget):
 
@@ -272,8 +270,9 @@ class MotorTestWindow(QWidget):
 
     def test_nema17_motor(self):
         num_steps = int(self.nema17_number_of_steps.text().strip())
-        microsteps = self.nema17_microstep_mode
+        microsteps_count = self.nema17_microstep_mode
         direction = self.nema17_direction
+        self.parent.move_nema_17(dir=direction, step_count=num_steps, microsteps=microsteps_count)
 
     def test_nema23_motor(self):
         pass
@@ -308,10 +307,6 @@ class MainWindow(QMainWindow):
         self.username = None
         self.password = None
         self.ssh_port = None
-
-        # MOTOR CONNECTIONS
-        self.nema_23_controller = None
-        self.nema_17_controller = None
         
         self.init_ui()
 
@@ -320,6 +315,7 @@ class MainWindow(QMainWindow):
         self.apply_theme()
 
         self.motor_pins = False
+        self.motor_worker = None
 
     def apply_theme(self):
         if self.color_theme == "Light":
@@ -767,11 +763,71 @@ class MainWindow(QMainWindow):
         self.log("Motor pin configuration saved!", "success")
         self.motor_pins = True
         self.test_motors_button.setEnabled(self.rp_connected and self.motor_pins)
+        self.read_motor_params()
+
+    def read_motor_params(self):
+        with open("motor_pin_config.json", "r", encoding='utf-8') as file:
+            motor_data = json.load(file)
+
+        self.nema17_dir_pin = motor_data["nema17"]["dir"]
+        self.nema17_en_pin = motor_data["nema17"]["enable"]
+        self.nema17_step_pin = motor_data["nema17"]["step"]
+        self.nema17_m0_pin = motor_data["nema17"]["m0"]
+        self.nema17_m1_pin = motor_data["nema17"]["m1"]
+        self.nema17_m2_pin = motor_data["nema17"]["m2"]
+
+        self.nema23_dir_pin = motor_data["nema23"]["dir"]
+        self.nema23_step_pin = motor_data["nema23"]["step"]
+        self.nema23_en_pin = motor_data["nema23"]["enable"]
 
     def open_motor_test_window(self):
         self.motor_window = MotorTestWindow(self.ssh, parent=self)
         self.motor_window.show()
 
+    def move_nema17(self, dir=1, step_count=200, microsteps=4):
+        if self.ssh is None:
+            self.log("Not connected to Raspberry Pi", "error")
+            return
+
+        if self.motor_worker is not None and self.motor_worker.isRunning():
+            self.log("Motor command already running", "warning")
+            return
+
+        self.motor_worker = Nema17Worker(ssh=self.ssh, 
+                                         en_pin=self.nema17_en_pin, dir_pin=self.nema17_dir_pin,
+                                         step_pin = self.nema17_step_pin, m0_pin = self.nema17_m0_pin,
+                                         m1_pin = self.nema17_m1_pin, m2_pin = self.nema17_m2_pin,
+                                         direction = dir, steps = step_count, microstepping_mode = microsteps)
+
+        if dir ==1:
+            direction_label = "clockwise"
+        else: direction_label = "counterclockwise"
+        deg = 1.8/microsteps
+        self.log(f"Moving NEMA17 {direction_label} by {step_count} steps, microstep = {microsteps} = {deg:.3f} degrees per step")
+        
+        self.motor_worker.success.connect(
+        lambda msg: self.log(msg, "success")
+        )
+
+        self.motor_worker.error.connect(
+            lambda msg: self.log(msg, "error")
+        )
+
+        self.motor_worker.finished.connect(
+            lambda: self.log("NEMA 17 worker finished", "info")
+        )
+
+        self.motor_worker.start()
+
+    def move_nema23(self):
+        if self.ssh is None:
+            self.log("Not connected to Raspberry Pi", "error")
+            return
+
+        if self.motor_worker is not None and self.motor_worker.isRunning():
+            self.log("Motor command already running", "warning")
+            return
+        
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
         if self.log_output.isVisible():

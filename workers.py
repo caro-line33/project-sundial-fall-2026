@@ -54,23 +54,26 @@ class Nema17Worker(QThread):
     def run(self):
         if not self.ssh_client:
             self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
-
+            return
         try:
             command = (
-                f"python3 /home/ece489/ece480fall2026 nema17.py " 
-                f"{self.en_pin} {self.dir_pin} {self.step_pin}" # args 1, 2, 3
-                f"{self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode}" # 4, 5, 6, 7
-                f"{self.direction} {self.steps}" # 8, 9
+                f"python3 /home/ece489/ece480fall2026 nema17.py "
+                f"{self.en_pin} {self.dir_pin} {self.step_pin}"
+                f"{self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode}"
+                f"{self.direction} {self.steps}"
             )
 
             stdin, stdout, stderr = self.ssh_client.exec_command(command)
+
+            exit_code = stdout.channel.recv_exit_status()
+
             output = stdout.read().decode()
             error = stderr.read().decode()
-            
-            if output:
-                self.signal.emit(f"Output: {output}")
-            if error:
-                self.error.emit(f"Error: {error}")
+
+            if exit_code == 0:
+                self.success.emit(output or "Motor movement completed")
+            else:
+                self.error.emit(error or f"Command failed: {exit_code}")
 
         except Exception as e:
             self.error.emit(f"Error executing : {e}")
@@ -94,22 +97,25 @@ class Nema23Worker(QThread):
     def run(self):
         if not self.ssh_client:
             self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
-
+            return
         try:
             command = (
-                f"python3 /home/ece489/ece480fall2026 nema23.py " 
-                f"{self.en_pin} {self.dir_pin} {self.step_pin}" # args 1, 2, 3
-                f"{self.direction} {self.steps}"  # 4, 5
+                f"python3 /home/ece489/ece480fall2026/nema23.py "
+                f"{self.en_pin} {self.dir_pin} {self.step_pin} "
+                f"{self.direction} {self.steps}"
             )
 
             stdin, stdout, stderr = self.ssh_client.exec_command(command)
+
+            exit_code = stdout.channel.recv_exit_status()
+
             output = stdout.read().decode()
             error = stderr.read().decode()
-            
-            if output:
-                self.signal.emit(f"Output: {output}")
-            if error:
-                self.error.emit(f"Error: {error}")
+
+            if exit_code == 0:
+                self.success.emit(output or "Motor movement completed")
+            else:
+                self.error.emit(error or f"Command failed: {exit_code}")
 
         except Exception as e:
             self.error.emit(f"Error executing : {e}")
