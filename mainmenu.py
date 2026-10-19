@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QFrame, QSplitter, QTextEdit, QComboBox
 )
 from PyQt6.QtCore import Qt, QEvent
-from workers import ConnectWorker, Nema17Worker, Nema23worker
+from workers import ConnectWorker, Nema17Worker, Nema23Worker
 import json
 import math
 from html import escape
