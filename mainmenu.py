@@ -34,7 +34,6 @@ class EntryLine(QWidget):
         return self.entry.text()
 
 class InfoBox(QGroupBox):
-    """One step of the setup wizard, with an explicit available/locked label."""
 
     def __init__(
         self,
