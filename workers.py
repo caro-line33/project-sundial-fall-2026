@@ -56,12 +56,7 @@ class Nema17Worker(QThread):
             self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
             return
         try:
-            command = (
-                f"python3 /home/ece489/ece480fall2026 nema17.py "
-                f"{self.en_pin} {self.dir_pin} {self.step_pin}"
-                f"{self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode}"
-                f"{self.direction} {self.steps}"
-            )
+            command = (f"python3 /home/ece489/ece480fall2026/nema17.py {self.en_pin} {self.dir_pin} {self.step_pin} {self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode} {self.direction} {self.steps} ")
 
             stdin, stdout, stderr = self.ssh_client.exec_command(command)
 

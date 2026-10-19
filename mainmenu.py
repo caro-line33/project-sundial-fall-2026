@@ -54,10 +54,7 @@ class InfoBox(QGroupBox):
         description_row = QHBoxLayout()
         self.description_label = QLabel(self.description)
         self.description_label.setObjectName("stepDescription")
-        # self.status_label = QLabel("AVAILABLE")
-        # self.status_label.setObjectName("sectionStatus")
         description_row.addWidget(self.description_label, 1)
-        # description_row.addWidget(self.status_label)
 
         self.button = QPushButton(self.button_text)
         self.main_layout.addLayout(description_row, 2)
@@ -66,10 +63,6 @@ class InfoBox(QGroupBox):
         self.main_layout.addLayout(self.entry_boxes, 7)
         self.main_layout.addWidget(self.button, 1)
 
-    # def changeEvent(self, event):
-    #    super().changeEvent(event)
-    #    if event.type() == QEvent.Type.EnabledChange and hasattr(self, "status_label"):
-    #        self.status_label.setText("AVAILABLE" if self.isEnabled() else "LOCKED")
 
     def add_item(self, widget):
         self.entry_boxes.addWidget(widget)
@@ -215,7 +208,7 @@ class MotorTestWindow(QWidget):
         self.nema17_info = InfoBox(title="Nema 17", description="Motor Movement Parameters for Nema 17 (Rotation)", button_text="Run Command")
         self.nema17_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
         self.nema17_direction_box = QComboBox(self.nema17_info)
-        self.nema17_direction_box.addItems(["Clockwise", "Counterclockwise"])
+        self.nema17_direction_box.addItems(["Counterclockwise", "Clockwise"])
         self.nema17_direction_box.currentIndexChanged.connect(self.update_direction_17)
 
         self.nema17_microstep = QComboBox(self.nema17_info)
@@ -234,9 +227,6 @@ class MotorTestWindow(QWidget):
         self.nema17_info.add_item(self.nema17_microstep)
         layout.addWidget(self.nema17_info)
 
-        self.test_nema23_button = QPushButton("Test NEMA 23 Motor")
-        self.test_nema23_button.clicked.connect(self.test_nema23_motor)
-
         # NEMA 23 STUFF
         self.nema23_direction = 1
         self.nema23_steps = 10
@@ -244,8 +234,10 @@ class MotorTestWindow(QWidget):
         self.nema23_info = InfoBox(title="Nema 23", description="Motor Movement Parameters for Nema 23 (Linear)", button_text="Run Command")
         self.nema23_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
         self.nema23_direction_box = QComboBox(self.nema23_info)
-        self.nema23_direction_box.addItems(["Forwards", "Backwards"])
+        self.nema23_direction_box.addItems(["Backwards", "Forwards"])
         self.nema23_direction_box.currentIndexChanged.connect(self.update_direction_23)
+        self.test_nema23_button = self.nema23_info.button
+        self.test_nema23_button.clicked.connect(self.test_nema23_motor)
 
         self.nema23_info.add_item(self.nema23_number_of_steps)
         self.nema23_info.add_item(self.nema23_direction_box)
@@ -272,10 +264,12 @@ class MotorTestWindow(QWidget):
         num_steps = int(self.nema17_number_of_steps.text().strip())
         microsteps_count = self.nema17_microstep_mode
         direction = self.nema17_direction
-        self.parent.move_nema_17(dir=direction, step_count=num_steps, microsteps=microsteps_count)
+        self.parent.move_nema17(dir=direction, step_count=num_steps, microsteps=microsteps_count)
 
     def test_nema23_motor(self):
-        pass
+        num_steps = int(self.nema23_number_of_steps.text().strip())
+        direction = self.nema23_direction
+        self.parent.move_nema23(dir=direction, step_count=num_steps)
 
     def update_microstep_17(self):
         self.nema17_microstep_mode = 2 ** int(self.nema17_microstep.currentIndex())
@@ -780,6 +774,9 @@ class MainWindow(QMainWindow):
         self.nema23_step_pin = motor_data["nema23"]["step"]
         self.nema23_en_pin = motor_data["nema23"]["enable"]
 
+        self.motor_pins = True
+        self.testing_setup.setEnabled(self.rp_connected and self.motor_pins)
+
     def open_motor_test_window(self):
         self.motor_window = MotorTestWindow(self.ssh, parent=self)
         self.motor_window.show()
@@ -819,7 +816,7 @@ class MainWindow(QMainWindow):
 
         self.motor_worker.start()
 
-    def move_nema23(self):
+    def move_nema23(self, dir=1, step_count=200):
         if self.ssh is None:
             self.log("Not connected to Raspberry Pi", "error")
             return
@@ -827,6 +824,30 @@ class MainWindow(QMainWindow):
         if self.motor_worker is not None and self.motor_worker.isRunning():
             self.log("Motor command already running", "warning")
             return
+
+        self.motor_worker = Nema23Worker(ssh=self.ssh, 
+                                         en_pin=self.nema23_en_pin, dir_pin=self.nema23_dir_pin,
+                                         step_pin = self.nema23_step_pin,
+                                         direction = dir, steps = step_count)
+
+        if dir == 1:
+            direction_label = "forwards"
+        else: direction_label = "backwards"
+        self.log(f"Moving NEMA23 {direction_label} by {step_count} steps")
+
+        self.motor_worker.success.connect(
+            lambda msg: self.log(msg, "success")
+        )
+
+        self.motor_worker.error.connect(
+            lambda msg: self.log(msg, "error")
+        )
+
+        self.motor_worker.finished.connect(
+            lambda: self.log("NEMA 23 worker finished", "info")
+        )
+
+        self.motor_worker.start()
         
     def show_hide_log(self):
         # Toggles the visibility of the log output widget.
