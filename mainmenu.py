@@ -576,9 +576,9 @@ class MainWindow(QMainWindow):
         # NEMA 17
         self.nema17_info = QGroupBox("NEMA 17 Connections")
 
-        self.en_17 = EntryLine("EN Pin:", 12)
-        self.dir_17 = EntryLine("DIR Pin:", 20)
-        self.step_17 = EntryLine("STEP Pin:", 21)
+        self.en_17 = EntryLine("EN Pin:", 5)
+        self.dir_17 = EntryLine("DIR Pin:", 6)
+        self.step_17 = EntryLine("STEP Pin:", 26)
 
         self.M0_17 = EntryLine("M0:", 14)
         self.M1_17 = EntryLine("M1:", 15)
