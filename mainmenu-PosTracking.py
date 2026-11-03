@@ -257,8 +257,8 @@ class MotorTestWindow(QWidget):
 
     def update_position_labels(self):
         self.nema17_position_label.setText(
-            f"Current commanded angle: {self.parent.nema17_position_deg % 360:.6f} deg\n"
-            f"Total rotation: {self.parent.nema17_position_deg:+.6f} deg")
+            f"Current commanded angle: {self.parent.nema17_position_deg % 360:.2f} deg\n"
+            f"Total rotation: {self.parent.nema17_position_deg:+.2f} deg")
         self.nema23_position_label.setText(
             f"Horizontal position: {self.parent.nema23_position_steps:+d} steps")
         for motor, label in (("nema17", self.nema17_position_label),
@@ -618,13 +618,10 @@ class MainWindow(QMainWindow):
         # NEMA 17
         self.nema17_info = QGroupBox("NEMA 17 Connections")
 
-        self.en_17 = EntryLine("EN Pin:", 12)
-        self.dir_17 = EntryLine("DIR Pin:", 20)
-        self.step_17 = EntryLine("STEP Pin:", 21)
+        self.en_17 = EntryLine("EN Pin:", 5)
+        self.dir_17 = EntryLine("DIR Pin:", 6)
+        self.step_17 = EntryLine("STEP Pin:", 26)
 
-        self.M0_17 = EntryLine("M0:", 14)
-        self.M1_17 = EntryLine("M1:", 15)
-        self.M2_17 = EntryLine("M2:", 18)
 
         self.nema17_layout = QHBoxLayout(self.nema17_info)
 
@@ -919,8 +916,8 @@ class MainWindow(QMainWindow):
             if not known:
                 self.log(f"{motor.upper()}: POSITION UNKNOWN after command failure; retained total below is not current position.", "warning")
         self.log(
-            f"[COMMANDED POSITION] NEMA 17: {self.nema17_position_deg:+.6f} deg "
-            f"(orientation {self.nema17_position_deg % 360:.6f} deg); "
+            f"[COMMANDED POSITION] NEMA 17: {self.nema17_position_deg:+.2f} deg "
+            f"(orientation {self.nema17_position_deg % 360:.2f} deg); "
             f"NEMA 23 horizontal position: {self.nema23_position_steps:+d} steps. "
             "Relative to session start; CW/forwards are positive.",
             "info"
