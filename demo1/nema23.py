@@ -9,6 +9,9 @@ dir_pin = int(sys.argv[2])
 step_pin = int(sys.argv[3])
 direction = int(sys.argv[4])
 steps = int(sys.argv[5])
+pps = int(sys.argv[6])
+
+sleep_time = 1/pps
 
 # Validate parameters
 if direction not in (0, 1):
@@ -42,9 +45,15 @@ try:
     # Move motor
     for _ in range(steps):
         STEP_CTRL.on()
+<<<<<<< HEAD
         sleep(0.0025)
         STEP_CTRL.off()
         sleep(0.0025)
+=======
+        sleep(sleep_time)
+        STEP_CTRL.off()
+        sleep(sleep_time)
+>>>>>>> a4b9fd46e1469edff2d99dbd5b27129240b9cec5
 
     print(f"Successfully moved NEMA 23 by {steps} pulses")
 
