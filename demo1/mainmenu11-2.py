@@ -595,7 +595,7 @@ class MainWindow(QMainWindow):
 
         self.ip_address_box = EntryLine(
             prompt="IP Address:",
-            default_value="35.9.42.197"
+            default_value="35.12.214.74"
         )
 
         self.username_box = EntryLine(

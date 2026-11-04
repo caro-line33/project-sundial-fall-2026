@@ -565,7 +565,7 @@ class MainWindow(QMainWindow):
 
         self.ip_address_box = EntryLine(
             prompt="IP Address:",
-            default_value="35.9.42.197"
+            default_value="35.12.214.74"
         )
 
         self.username_box = EntryLine(
@@ -618,9 +618,9 @@ class MainWindow(QMainWindow):
         # NEMA 17
         self.nema17_info = QGroupBox("NEMA 17 Connections")
 
-        self.en_17 = EntryLine("EN Pin:", 5)
-        self.dir_17 = EntryLine("DIR Pin:", 6)
-        self.step_17 = EntryLine("STEP Pin:", 26)
+        self.en_17 = EntryLine("EN Pin:", 12)
+        self.dir_17 = EntryLine("DIR Pin:", 20)
+        self.step_17 = EntryLine("STEP Pin:", 21)
 
         self.M0_17 = EntryLine("M0:", 14)
         self.M1_17 = EntryLine("M1:", 15)

@@ -49,7 +49,7 @@ microstep_pin_levels = {
     4:  [0, 1, 0],
     8:  [1, 1, 0],
     16: [0, 0, 1],
-    32: [1, 0, 1]
+    32: [1, 1, 1]
 }
 
 try:
@@ -66,9 +66,9 @@ try:
     # Move motor
     for _ in range(steps):
         STEP_CTRL.on()
-        sleep(0.005)
+        sleep(0.001)
         STEP_CTRL.off()
-        sleep(0.005)
+        sleep(0.001)
 
     print(f"Successfully moved {steps} steps")
 
