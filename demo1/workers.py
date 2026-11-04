@@ -36,7 +36,7 @@ class Nema17Worker(QThread):
     error = pyqtSignal(str)
 
     def __init__(self, ssh, en_pin, dir_pin, step_pin, m0_pin, m1_pin, m2_pin,
-                 direction, steps, microstepping_mode):
+                 direction, steps, microstepping_mode, pps):
 
         super().__init__()
 
@@ -50,13 +50,14 @@ class Nema17Worker(QThread):
         self.direction = direction
         self.steps = steps
         self.microstepping_mode = microstepping_mode
+        self.pulses_per_second = pps
 
     def run(self):
         if not self.ssh_client:
             self.error.emit("Raspberry Pi not connected. Please initialize SSH connection.")
             return
         try:
-            command = (f"python3 /home/ece489/ece480fall2026/nema17.py {self.en_pin} {self.dir_pin} {self.step_pin} {self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode} {self.direction} {self.steps} ")
+            command = (f"python3 /home/ece489/ece480fall2026/nema17.py {self.en_pin} {self.dir_pin} {self.step_pin} {self.m0_pin} {self.m1_pin} {self.m2_pin} {self.microstepping_mode} {self.direction} {self.steps} {self.pulses_per_second}")
 
             stdin, stdout, stderr = self.ssh_client.exec_command(command)
 
@@ -78,7 +79,7 @@ class Nema23Worker(QThread):
     error = pyqtSignal(str)
 
     def __init__(self, ssh, en_pin, dir_pin, step_pin,
-                 direction, steps):
+                 direction, steps, pps):
 
         super().__init__()
 
@@ -88,6 +89,7 @@ class Nema23Worker(QThread):
         self.step_pin = step_pin
         self.direction = direction
         self.steps = steps
+        self.pulses_per_second = pps
 
     def run(self):
         if not self.ssh_client:
@@ -97,7 +99,7 @@ class Nema23Worker(QThread):
             command = (
                 f"python3 /home/ece489/ece480fall2026/nema23.py "
                 f"{self.en_pin} {self.dir_pin} {self.step_pin} "
-                f"{self.direction} {self.steps}"
+                f"{self.direction} {self.steps} {self.pulses_per_second}"
             )
 
             stdin, stdout, stderr = self.ssh_client.exec_command(command)

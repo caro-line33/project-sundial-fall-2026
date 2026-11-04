@@ -211,6 +211,7 @@ class MotorTestWindow(QWidget):
 
         self.nema17_info = InfoBox(title="Nema 17", description="Motor Movement Parameters for Nema 17 (Rotation)", button_text="Run Command")
         self.nema17_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
+        self.nema17_speed = EntryLine(prompt="Pulses per second:", default_value=200)
         self.nema17_direction_box = QComboBox(self.nema17_info)
         self.nema17_direction_box.addItems(["Counterclockwise", "Clockwise"])
         self.nema17_direction_box.currentIndexChanged.connect(self.update_direction_17)
@@ -230,6 +231,7 @@ class MotorTestWindow(QWidget):
         self.nema17_position_label.setWordWrap(True)
         self.nema17_info.add_item(self.nema17_position_label)
         self.nema17_info.add_item(self.nema17_number_of_steps)
+        self.nema17_info.add_item(self.nema17_speed)
         self.nema17_info.add_item(self.nema17_direction_box)
         self.nema17_info.add_item(self.nema17_microstep)
         layout.addWidget(self.nema17_info)
@@ -240,6 +242,7 @@ class MotorTestWindow(QWidget):
 
         self.nema23_info = InfoBox(title="Nema 23", description="Motor Movement Parameters for Nema 23 (Linear)", button_text="Run Command")
         self.nema23_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
+        self.nema23_speed = EntryLine(prompt="Pulses per second:", default_value=200)
         self.nema23_direction_box = QComboBox(self.nema23_info)
         self.nema23_direction_box.addItems(["Backwards", "Forwards"])
         self.nema23_direction_box.currentIndexChanged.connect(self.update_direction_23)
@@ -250,6 +253,7 @@ class MotorTestWindow(QWidget):
         self.nema23_position_label.setWordWrap(True)
         self.nema23_info.add_item(self.nema23_position_label)
         self.nema23_info.add_item(self.nema23_number_of_steps)
+        self.nema23_info.add_item(self.nema23_speed)
         self.nema23_info.add_item(self.nema23_direction_box)
         layout.addWidget(self.nema23_info)
         # Shared origin controls sit beneath the two motor panels.
@@ -311,25 +315,45 @@ class MotorTestWindow(QWidget):
     def test_nema17_motor(self):
         try:
             num_steps = int(self.nema17_number_of_steps.text().strip())
-            if num_steps < 0:
+            speed = int(self.nema17_speed.text().strip())
+
+            if num_steps < 0 or speed <= 0:
                 raise ValueError()
+
         except ValueError:
-            self.main_window.log("Enter a nonnegative whole-number pulse count", "error")
+            self.main_window.log(
+                "Enter a nonnegative pulse count and a positive speed.",
+                "error"
+            )
             return
-        microsteps_count = self.nema17_microstep_mode
-        direction = self.nema17_direction
-        self.main_window.move_nema17(dir=direction, step_count=num_steps, microsteps=microsteps_count)
+
+        self.main_window.move_nema17(
+            dir=self.nema17_direction,
+            step_count=num_steps,
+            microsteps=self.nema17_microstep_mode,
+            pulses_per_second=speed
+        )
 
     def test_nema23_motor(self):
         try:
             num_steps = int(self.nema23_number_of_steps.text().strip())
-            if num_steps < 0:
+            speed = int(self.nema23_speed.text().strip())
+
+            if num_steps < 0 or speed <= 0:
                 raise ValueError()
+
         except ValueError:
-            self.main_window.log("Enter a nonnegative whole-number pulse count", "error")
+            self.main_window.log(
+                "Enter a nonnegative pulse count and a positive speed.",
+                "error"
+            )
             return
-        direction = self.nema23_direction
-        self.main_window.move_nema23(dir=direction, step_count=num_steps)
+
+        self.main_window.move_nema23(
+            dir=self.nema23_direction,
+            step_count=num_steps,
+            pulses_per_second=speed
+        )
 
     def update_microstep_17(self):
         self.nema17_microstep_mode = 2 ** int(self.nema17_microstep.currentIndex())
@@ -858,7 +882,7 @@ class MainWindow(QMainWindow):
         self.motor_window = MotorTestWindow(self.ssh, parent=self)
         self.motor_window.show()
 
-    def move_nema17(self, dir=1, step_count=200, microsteps=4):
+    def move_nema17(self, dir=1, step_count=200, microsteps=4, pulses_per_second=200):
         if self.returning_to_origin and not self._origin_dispatch:
             self.log("Return to origin is in progress.", "warning")
             return
@@ -874,7 +898,8 @@ class MainWindow(QMainWindow):
                                          en_pin=self.nema17_en_pin, dir_pin=self.nema17_dir_pin,
                                          step_pin = self.nema17_step_pin, m0_pin = self.nema17_m0_pin,
                                          m1_pin = self.nema17_m1_pin, m2_pin = self.nema17_m2_pin,
-                                         direction = dir, steps = step_count, microstepping_mode = microsteps)
+                                         direction = dir, steps = step_count, microstepping_mode = microsteps,
+                                         pps=pulses_per_second)
 
         if dir ==1:
             direction_label = "clockwise"
@@ -900,7 +925,7 @@ class MainWindow(QMainWindow):
         self.refresh_position_displays()
         self.motor_worker.start()
 
-    def move_nema23(self, dir=1, step_count=200):
+    def move_nema23(self, dir=1, step_count=200, pulses_per_second=200):
         if self.returning_to_origin and not self._origin_dispatch:
             self.log("Return to origin is in progress.", "warning")
             return
@@ -915,7 +940,7 @@ class MainWindow(QMainWindow):
         self.motor_worker = Nema23Worker(ssh=self.ssh, 
                                          en_pin=self.nema23_en_pin, dir_pin=self.nema23_dir_pin,
                                          step_pin = self.nema23_step_pin,
-                                         direction = dir, steps = step_count)
+                                         direction = dir, steps = step_count, pps=pulses_per_second)
 
         if dir == 1:
             direction_label = "forwards"

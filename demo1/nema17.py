@@ -14,7 +14,9 @@ m2 = int(sys.argv[6])
 microstepping_mode = int(sys.argv[7])
 direction = int(sys.argv[8])
 steps = int(sys.argv[9])
+pps = int(sys.argv[10])
 
+sleep_time = 1/pps
 # Validate parameters
 if microstepping_mode not in (1, 2, 4, 8, 16, 32):
     raise ValueError("Invalid microstepping mode")
@@ -66,9 +68,9 @@ try:
     # Move motor
     for _ in range(steps):
         STEP_CTRL.on()
-        sleep(0.005)
+        sleep(sleep_time)
         STEP_CTRL.off()
-        sleep(0.005)
+        sleep(sleep_time)
 
     print(f"Successfully moved {steps} steps")
 
