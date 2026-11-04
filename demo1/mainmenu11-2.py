@@ -213,7 +213,7 @@ class MotorTestWindow(QWidget):
         self.nema17_number_of_steps = EntryLine(prompt = "Number of steps", default_value = " ")
         self.nema17_speed = EntryLine(prompt="Pulses per second:", default_value=200)
         self.nema17_direction_box = QComboBox(self.nema17_info)
-        self.nema17_direction_box.addItems(["Counterclockwise", "Clockwise"])
+        self.nema17_direction_box.addItems(["Clockwise", "Counterclockwise"])
         self.nema17_direction_box.currentIndexChanged.connect(self.update_direction_17)
 
         self.nema17_microstep = QComboBox(self.nema17_info)
