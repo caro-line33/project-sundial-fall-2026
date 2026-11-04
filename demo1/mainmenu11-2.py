@@ -397,6 +397,12 @@ class MainWindow(QMainWindow):
         self.returning_to_origin = False
         self.origin_queue = []
         self._origin_dispatch = False
+
+        # DUT testing state
+        self.device_locations_q = []
+        self.current_device_location = 1
+        self.total_device_locations = 12
+
         self.init_ui()
 
         # Apply AFTER creating the widgets so it covers the whole window.
@@ -728,7 +734,20 @@ class MainWindow(QMainWindow):
         )
 
         self.dut_selector = DUTSelector()
+
+        self.dut_selector.positionSelected.connect(
+            self.update_device_locations
+        )
+
+        self.device_locations_label = QLabel("Selected devices: None")
+        self.device_locations_label.setWordWrap(True)
+
+        self.current_device_label = QLabel("Current device location: 1")
+
         self.testing_setup.add_item(self.dut_selector)
+        self.testing_setup.add_item(self.device_locations_label)
+        self.testing_setup.add_item(self.current_device_label)
+
         self.testing_setup.setEnabled(self.rp_connected and self.motor_pins)
 
         self.infoboxes_layout.addWidget(self.testing_setup, 1)
@@ -758,7 +777,7 @@ class MainWindow(QMainWindow):
 
         # Hide log initially
         self.log_output.show() 
-
+    
     def connect_rp_function(self):
         if self.returning_to_origin or self.motor_command_pending or (self.motor_worker is not None and self.motor_worker.isRunning()):
             self.log("Wait for motor movement to finish before reconnecting.", "warning")
@@ -1036,6 +1055,38 @@ class MainWindow(QMainWindow):
             self.log("Return to origin stopped: movement could not be started.", "error")
             self.refresh_position_displays()
 
+    def update_device_locations(self, location):
+        """
+        Add or remove a DUT location from the testing queue.
+        """
+
+        if location in self.device_locations_q:
+            self.device_locations_q.remove(location)
+            self.log(f"Removed DUT {location} from testing queue")
+
+        else:
+            self.device_locations_q.append(location)
+            self.log(f"Added DUT {location} to testing queue")
+
+        self.refresh_device_locations()
+
+    def refresh_device_locations(self):
+        if self.device_locations_q:
+            locations = ", ".join(
+                str(location)
+                for location in self.device_locations_q
+            )
+        else:
+            locations = "None"
+
+        self.device_locations_label.setText(
+            f"Selected devices: {locations}"
+        )
+
+        self.current_device_label.setText(
+            f"Current device location: {self.current_device_location}"
+        )
+        
     def motor_thread_finished(self):
         # Defer the next move until the previous worker has fully exited.
         self.refresh_position_displays()
@@ -1046,6 +1097,19 @@ class MainWindow(QMainWindow):
         if getattr(self, "motor_window", None) is not None:
             self.motor_window.update_position_labels()
 
+
+    def set_current_device_location(self, location):
+        if not 1 <= location <= self.total_device_locations:
+            self.log("Invalid DUT location", "error")
+            return
+
+        self.current_device_location = location
+
+        self.refresh_device_locations()
+
+        self.log(
+            f"Current DUT location updated to {location}"
+        )
 
     def motor_move_completed(self, motor, delta, message):
         # Update only after a successful worker result, on the GUI thread.

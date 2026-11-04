@@ -68,15 +68,9 @@ try:
     # Move motor
     for _ in range(steps):
         STEP_CTRL.on()
-<<<<<<< HEAD
-        sleep(0.001)
-        STEP_CTRL.off()
-        sleep(0.001)
-=======
         sleep(sleep_time)
         STEP_CTRL.off()
         sleep(sleep_time)
->>>>>>> a4b9fd46e1469edff2d99dbd5b27129240b9cec5
 
     print(f"Successfully moved {steps} steps")
 
