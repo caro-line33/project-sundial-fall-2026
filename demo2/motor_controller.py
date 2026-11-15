@@ -1,3 +1,5 @@
+from faulthandler import enable
+from multiprocessing.dummy import shutdown
 import sys
 import time
 import threading
@@ -5,11 +7,11 @@ import threading
 from gpiozero import DigitalInputDevice, DigitalOutputDevice
 from gpiozero.pins.lgpio import LGPIOFactory
 
-factory = LGPIOFactory()
-
 # ==========================================
 # GPIO CONFIGURATION
 # ==========================================
+
+factory = LGPIOFactory()
 
 # Optical sensors
 sensor7 = DigitalInputDevice(
@@ -34,203 +36,200 @@ switch21 = DigitalInputDevice(
 )
 
 # NEMA 23 motor
-direction = DigitalOutputDevice(
-    6, pin_factory=factory
-)
+PUL23 = DigitalOutputDevice(23, pin_factory=factory)
+DIR23 = DigitalOutputDevice(22, pin_factory=factory)
+ENA23 = DigitalOutputDevice(24, active_high=False, initial_value=False, pin_factory=factory)
 
-step = DigitalOutputDevice(
-    26, pin_factory=factory
-)
-
-enable = DigitalOutputDevice(
-    5,
-    active_high=False,
-    initial_value=False,
-    pin_factory=factory
-)
+# NEMA 17 motor
+PUL17 = DigitalOutputDevice(26, pin_factory=factory)
+DIR17 = DigitalOutputDevice(6, pin_factory=factory)
+ENA17 = DigitalOutputDevice(5, active_high=False, initial_value=False, pin_factory=factory)
 
 # ==========================================
-# SHARED STATE
+# SHARED STATES
 # ==========================================
 
-moving = threading.Event()
-shutdown = threading.Event()
-
+moving23 = threading.Event()
+moving17 = threading.Event()
+shutdown23 = threading.Event()
+shutdown17 = threading.Event()
 state_lock = threading.RLock()
+direction23 = 1
+direction17 = 1
 
-# +1 = forward, -1 = backward
-motor_direction = 1
+# ==========================================
+# MOTOR SAFETY & CONTROL
+# ==========================================
 
-# This is the logical sensor state.
-# Adjust if optical sensor polarity differs.
-def sensor7_engaged():
-    return not sensor7.is_active
+def home_position():
+    return sensor7.is_active and sensor8.is_active
 
-def sensor8_engaged():
-    return not sensor8.is_active
+def dut_aligned():
+    return sensor7.is_active
 
-# Mechanical NC-to-GND switches:
-# pressed -> GPIO HIGH -> is_active False
 def forward_limit():
-    return not switch20.is_active
+    return switch20.is_active
 
 def backward_limit():
-    return not switch21.is_active
-
-
-# ==========================================
-# POSITION INFORMATION
-# ==========================================
-
-def at_home():
-    return sensor7_engaged() and sensor8_engaged()
-
-
-def at_dut_location():
-    return sensor7_engaged()
-
-
-def print_status():
-    print(
-        f"STATUS "
-        f"HOME={at_home()} "
-        f"DUT_ALIGNED={at_dut_location()} "
-        f"FORWARD_LIMIT={forward_limit()} "
-        f"BACKWARD_LIMIT={backward_limit()} "
-        f"MOVING={moving.is_set()}",
-        flush=True
-    )
-
-
-# ==========================================
-# MOTOR SAFETY
-# ==========================================
+    return switch21.is_active
 
 def can_move_nema23(requested_direction):
-    if nema17_moving.is_set():
+
+    # cannot move if NEMA 17 is moving
+    if moving17.is_set():
         return False
 
-    if requested_direction == 1 and forward_limit():
+    # can only move forward if the DUT and PIB are aligned and forward limit is not engaged
+    if requested_direction == 1 and forward_limit() and not dut_aligned():
         return False
 
+    # can only move backward if backward limit not yet engaged
     if requested_direction == -1 and backward_limit():
         return False
 
     return True
 
-
 def can_move_nema17():
+    # can only move when the DUT is as far back as possible (backward limit engaged) and forward limit not engaged
     return backward_limit() and not forward_limit()
 
+def print_status():
+    print(
+        f"STATUS "
+        f"HOME={home_position()} "
+        f"DUT_ALIGNED={dut_aligned()} "
+        f"FORWARD_LIMIT={forward_limit()} "
+        f"BACKWARD_LIMIT={backward_limit()} "
+        f"MOVING 17={moving17.is_set()} "
+        f"MOVING 23={moving23.is_set()}"
+        flush=True
+    )
 
-def stop_motor(reason="STOPPED"):
+
+def stop_17(reason="STOPPED"):
     with state_lock:
-        moving.clear()
-
+        moving17.clear()
     print(reason, flush=True)
 
+def stop_23(reason="STOPPED"):
+    with state_lock:
+        moving23.clear()
+    print(reason, flush=True)
 
 # ==========================================
 # SENSOR CALLBACKS
 # ==========================================
 
 def optical_sensor_changed():
-    if at_home():
-        print("DUT_HOME_POSITION", flush=True)
+    if home_position(): print("DUT_HOME_POSITION", flush=True)
 
-    elif at_dut_location():
-        print("DUT_ALIGNED", flush=True)
+    elif dut_aligned(): print("DUT_ALIGNED", flush=True)
 
-    else:
-        print("DUT_NOT_ALIGNED", flush=True)
+    else: print("DUT_NOT_ALIGNED", flush=True)
 
     print_status()
-
 
 def forward_limit_engaged():
     print("FORWARD_LIMIT_ENGAGED", flush=True)
 
     with state_lock:
-        if moving.is_set() and motor_direction == 1:
-            moving.clear()
+        if moving23.is_set() and direction23 == 1:
+            moving23.clear()
             print("NEMA23_FORWARD_BLOCKED", flush=True)
 
     print("NEMA17_ROTATION_BLOCKED", flush=True)
     print_status()
 
-
 def backward_limit_engaged():
     print("BACKWARD_LIMIT_ENGAGED", flush=True)
 
     with state_lock:
-        if moving.is_set() and motor_direction == -1:
-            moving.clear()
+        if moving23.is_set() and direction23 == -1:
+            moving23.clear()
             print("NEMA23_BACKWARD_BLOCKED", flush=True)
 
     print_status()
-
 
 def forward_limit_released():
     print("FORWARD_LIMIT_RELEASED", flush=True)
     print_status()
 
-
 def backward_limit_released():
     print("BACKWARD_LIMIT_RELEASED", flush=True)
     print_status()
 
-
-# Optical sensors: assumed engaged when HIGH
+# Optical sensors
 sensor7.when_deactivated = optical_sensor_changed
 sensor7.when_activated = optical_sensor_changed
-
 sensor8.when_deactivated = optical_sensor_changed
 sensor8.when_activated = optical_sensor_changed
 
-# NC mechanical switches: engaged when HIGH
-switch20.when_deactivated = forward_limit_engaged
-switch20.when_activated = forward_limit_released
-
-switch21.when_deactivated = backward_limit_engaged
-switch21.when_activated = backward_limit_released
-
+# Mechanical switches
+switch20.when_activated = forward_limit_engaged
+switch20.when_deactivated = forward_limit_released
+switch21.when_activated = backward_limit_engaged
+switch21.when_deactivated = backward_limit_released
 
 # ==========================================
-# MOTOR WORKER
+# NEMA17 WORKER
 # ==========================================
 
-def motor_worker():
-    while not shutdown.is_set():
+def motor_worker17():
+    while not shutdown17.is_set():
+        moving17.wait(timeout=0.1)  
+        if shutdown17.is_set(): break
 
-        moving.wait(timeout=0.1)
-
-        if shutdown.is_set():
-            break
-
-        while moving.is_set() and not shutdown.is_set():
-
+        while moving17.is_set() and not shutdown17.is_set():
             with state_lock:
-                if not can_move_nema23(motor_direction):
-                    moving.clear()
+                if not can_move_nema17():
+                    moving17.clear()
                     print("MOTION_BLOCKED_BY_LIMIT", flush=True)
                     break
 
                 # Keep the lock while issuing the pulse
                 # so commands/callbacks cannot change
                 # motor state in the middle of it.
-                step.on()
+                PUL17.on()
                 time.sleep(0.001)
-                step.off()
+                PUL17.off()
 
             time.sleep(0.005)
 
-    step.off()
-    enable.off()
-
+    PUL17.off()
+    ENA17.off()
 
 # ==========================================
-# COMMAND HANDLING
+# NEMA17 WORKER
 # ==========================================
+
+def motor_worker23():
+    while not shutdown23.is_set():
+
+        moving23.wait(timeout=0.1)
+
+        if shutdown23.is_set():
+            break
+
+        while moving23.is_set() and not shutdown23.is_set():
+
+            with state_lock:
+                if not can_move_nema23(motor_direction):
+                    moving23.clear()
+                    print("MOTION_BLOCKED_BY_LIMIT", flush=True)
+                    break
+
+                # Keep the lock while issuing the pulse
+                # so commands/callbacks cannot change
+                # motor state in the middle of it.
+                PUL23.on()
+                time.sleep(0.001)
+                PUL23.off()
+
+            time.sleep(0.005)
+
+    PUL23.off()
+    ENA23.off()
+
 
 def start_motor(requested_direction):
     global motor_direction

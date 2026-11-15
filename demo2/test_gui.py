@@ -43,6 +43,7 @@ class SSHWorker(QThread):
                 "35.9.42.197",
                 username="ece489",
                 port=22,
+                password="Sundial"
                 # Configure SSH authentication here.
             )
 
