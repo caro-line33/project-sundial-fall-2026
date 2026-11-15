@@ -3,24 +3,41 @@ import sys
 import time
 import threading
 
-# Shared between the main thread and motor thread
+from gpiozero import DigitalOutputDevice
+from gpiozero.pins.lgpio import LGPIOFactory
+
+factory = LGPIOFactory()
+
+direction = DigitalOutputDevice(20, pin_factory=factory)
+step = DigitalOutputDevice(21, pin_factory=factory)
+enable = DigitalOutputDevice(
+    12,
+    active_high=False,
+    initial_value=False,
+    pin_factory=factory
+)
+
 moving = threading.Event()
 shutdown = threading.Event()
 
-
+# One motor worker thread
 def motor_worker():
     while not shutdown.is_set():
 
         # Wait until START is received
-        moving.wait()
+        moving.wait(timeout=0.1)
 
         if shutdown.is_set():
             break
 
-        # Simulate one motor step
-        if moving.is_set():
-            print("STEP", flush=True)
-            time.sleep(0.2)
+        while moving.is_set() and not shutdown.is_set():
+            step.on()
+            time.sleep(0.001)
+            step.off()
+            time.sleep(0.005)
+
+    step.off()
+    enable.off()
 
 
 def main():
@@ -30,26 +47,38 @@ def main():
     print("READY", flush=True)
 
     try:
-        # Main thread listens for SSH commands
+        # Main thread listens for commands
         for line in sys.stdin:
-            command = line.strip()
+            args = line.strip().split()
 
-            if command == "START":
+            if not args:
+                continue
+
+            if args[0] == "START":
+                direction.on()  # Forward
+                enable.on()
                 moving.set()
                 print("STARTED", flush=True)
 
-            elif command == "STOP":
+            elif args[0] == "STOP":
                 moving.clear()
                 print("STOPPED", flush=True)
 
-            elif command == "QUIT":
+            elif args[0] == "QUIT":
                 break
 
     finally:
         moving.clear()
         shutdown.set()
-        moving.set()  # Wake thread so it can exit
         motor_thread.join()
+
+        step.off()
+        enable.off()
+
+        direction.close()
+        step.close()
+        enable.close()
+        factory.close()
 
 
 if __name__ == "__main__":
