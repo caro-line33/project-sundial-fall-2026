@@ -23,7 +23,7 @@ ENA17 = DigitalOutputDevice(5, active_high=False, initial_value=False, pin_facto
 # With pull_up=True, .is_active is True for a LOW GPIO level.
 # NC-to-ground mechanical switches are usually pressed when .is_active is False.
 OPTICAL_ENGAGED_WHEN_ACTIVE = True
-LIMIT_ENGAGED_WHEN_ACTIVE = False
+LIMIT_ENGAGED_WHEN_ACTIVE = True
 
 STEP_HIGH_S = 0.001
 STEP_LOW_S = 0.005
