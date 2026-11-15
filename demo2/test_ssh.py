@@ -7,7 +7,7 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect('35.9.42.197', username='ece489', password='Sundial', port=22)
 
 stdin, stdout, stderr = ssh.exec_command(
-    "python3 -u motor_controller.py"
+    "python3 -u /home/ece489/ece480fall2026/demo2/motor_controller.py"
 )
 
 

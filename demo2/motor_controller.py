@@ -8,10 +8,10 @@ from gpiozero.pins.lgpio import LGPIOFactory
 
 factory = LGPIOFactory()
 
-direction = DigitalOutputDevice(20, pin_factory=factory)
-step = DigitalOutputDevice(21, pin_factory=factory)
+direction = DigitalOutputDevice(6, pin_factory=factory)
+step = DigitalOutputDevice(26, pin_factory=factory)
 enable = DigitalOutputDevice(
-    12,
+    5,
     active_high=False,
     initial_value=False,
     pin_factory=factory
