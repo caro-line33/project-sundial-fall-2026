@@ -3,7 +3,7 @@ from gpiozero import OutputDevice
 from gpiozero.pins.lgpio import LGPIOFactory
 import sys
 
-# Read parameters from SSH command
+# Read parameters for Nema23 control w/DM542 driver
 enable_pin = int(sys.argv[1])
 dir_pin = int(sys.argv[2])
 step_pin = int(sys.argv[3])
